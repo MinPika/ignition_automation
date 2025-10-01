@@ -1,0 +1,22 @@
+module.exports = {
+  'ai-marketing': 'AI in B2B Marketing',
+  'b2b-growth': 'B2B Growth Strategies',
+  'brand-storytelling': 'Human-Centric Brand Storytelling',
+  'customer-experience': 'Customer Experience in B2B',
+  'digital-transformation': 'Digital Transformation for SMEs',
+  'go-to-market': 'Go-To-Market Strategy for Startups',
+  'brand-audit': 'Brand Audits for Small Businesses',
+  'future-b2b': 'The Future of B2B Marketing',
+  'data-driven': 'Data-Driven Decision Making in Marketing',
+  'ai-tools': 'Using Generative AI Tools for Growth Marketing',
+  'emerging-tech': 'Emerging Tech and Martech for SMEs',
+  'founder-led-marketing': 'Founder-Led Marketing for B2B Startups',
+  'technical-founders': 'Helping Technical Founders Build Market Presence',
+  'startup-positioning': 'Strategic Positioning for Early-Stage Startups',
+  'digital-experience': 'Digital Experience Design for B2B Brands',
+  'conversion-journeys': 'Optimizing the B2B Conversion Journey',
+  'content-strategy': 'Content Strategy for B2B Growth',
+  'sales-enablement': 'Sales Enablement and Marketing Alignment',
+  'category-design': 'Category Design in B2B Markets',
+  'brand-differentiation': 'Standing Out in Competitive B2B Markets'
+};
