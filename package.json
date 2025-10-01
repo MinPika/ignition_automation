@@ -1,13 +1,32 @@
 {
   "name": "ignition-ghost-automation",
-  "version": "1.0.0",
-  "description": "",
+  "version": "2.0.0",
+  "description": "AI-powered blog automation for Ignition Studio with SEO optimization",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js",
+    "test-schedule": "node testScheduling.js",
+    "generate": "node -e \"const BlogGenerator = require('./src/automation/blogGenerator'); const gen = new BlogGenerator(); gen.generateAndCreateBlog().then(r => console.log('Done!', r.post.title)).catch(e => console.error(e.message));\"",
+    "generate:scheduled": "node -e \"const BlogGenerator = require('./src/automation/blogGenerator'); const gen = new BlogGenerator(); const date = gen.scheduler.getNextPublishDate(); gen.generateAndCreateBlog(null, null, null, date).then(r => console.log('Scheduled!', r.post.title)).catch(e => console.error(e.message));\"",
+    "generate:batch": "node -e \"const BlogGenerator = require('./src/automation/blogGenerator'); const gen = new BlogGenerator(); gen.generateBatch(3).then(r => console.log('Batch complete!')).catch(e => console.error(e.message));\"",
+    "generate:batch-scheduled": "node -e \"const BlogGenerator = require('./src/automation/blogGenerator'); const gen = new BlogGenerator(); gen.generateBatch(3, true).then(r => console.log('Scheduled batch complete!')).catch(e => console.error(e.message));\"",
+    "preview-schedule": "node -e \"const BlogGenerator = require('./src/automation/blogGenerator'); const gen = new BlogGenerator(); gen.previewSchedule(7);\"",
+    "stats": "node -e \"const BlogGenerator = require('./src/automation/blogGenerator'); const gen = new BlogGenerator(); gen.getTopicStats();\"",
+    "clear-history": "node -e \"const TopicHistory = require('./src/utils/topicHistory'); const hist = new TopicHistory(); hist.clearHistory();\"",
+    "test-image": "node -e \"const ImageGenerator = require('./src/services/imageGenerator'); const gen = new ImageGenerator(); gen.testConnection();\"",
+    "test-ai": "node -e \"const AIContent = require('./src/services/aiContent'); const ai = new AIContent(); ai.testConnection();\"",
+    "test-ghost": "node -e \"const Ghost = require('./src/services/ghostAPI'); const g = new Ghost(); g.testConnection();\""
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "ghost",
+    "blog",
+    "automation",
+    "ai",
+    "seo",
+    "b2b",
+    "marketing"
+  ],
+  "author": "Ignition Studio",
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^1.20.0",
@@ -17,7 +36,8 @@
     "axios": "^1.12.2",
     "dotenv": "^17.2.2",
     "fs-extra": "^11.3.2",
-    "moment": "^2.30.1"
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.5.45"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

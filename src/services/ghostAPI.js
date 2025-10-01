@@ -1,3 +1,4 @@
+// src/services/ghostAPI.js
 const GhostAdminAPI = require('@tryghost/admin-api');
 require('dotenv').config();
 
@@ -10,7 +11,13 @@ class GhostService {
     });
   }
 
-  async createDraft(postData) {
+  /**
+   * Create scheduled post (future publication)
+   * @param {Object} postData - Blog post data
+   * @param {Object} imageData - Image data (optional)
+   * @param {Date} publishDate - When to publish
+   */
+  async createScheduledPost(postData, imageData = null, publishDate) {
     try {
       const cleanContent = this.cleanContentForGhost(postData.content);
       const lexicalContent = this.htmlToLexical(cleanContent);
@@ -18,12 +25,72 @@ class GhostService {
       const postPayload = {
         title: postData.title,
         lexical: JSON.stringify(lexicalContent),
-        status: 'draft'
+        status: 'scheduled',
+        published_at: new Date(publishDate).toISOString(),
+        meta_title: postData.metaTitle,
+        meta_description: postData.metaDescription,
+        og_title: postData.ogTitle,
+        og_description: postData.ogDescription
       };
 
-      console.log('📤 Sending lexical payload to Ghost...');
+      // Add featured image if available
+      if (imageData && imageData.url) {
+        postPayload.feature_image = imageData.url;
+        postPayload.feature_image_alt = imageData.altText;
+      }
+
+      console.log('📤 Sending scheduled post to Ghost...');
       console.log('   Title:', postPayload.title);
-      console.log('   Lexical content blocks:', lexicalContent.root.children.length);
+      console.log('   Status: scheduled');
+      console.log('   Publish at:', new Date(publishDate).toLocaleString());
+      
+      const post = await this.api.posts.add(postPayload);
+      
+      console.log('📥 Ghost Response:');
+      console.log('   Post ID:', post.id);
+      console.log('   Status:', post.status);
+      console.log('   Scheduled for:', new Date(post.published_at).toLocaleString());
+      
+      return post;
+    } catch (error) {
+      console.error('❌ Error creating scheduled post:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Create draft with optional featured image
+   * @param {Object} postData - Blog post data
+   * @param {Object} imageData - Image data (optional)
+   */
+  async createDraft(postData, imageData = null) {
+    try {
+      const cleanContent = this.cleanContentForGhost(postData.content);
+      const lexicalContent = this.htmlToLexical(cleanContent);
+      
+      const postPayload = {
+        title: postData.title,
+        lexical: JSON.stringify(lexicalContent),
+        status: 'draft',
+        meta_title: postData.metaTitle,
+        meta_description: postData.metaDescription,
+        og_title: postData.ogTitle,
+        og_description: postData.ogDescription
+      };
+
+      // Add featured image if available
+      if (imageData && imageData.url) {
+        postPayload.feature_image = imageData.url;
+        postPayload.feature_image_alt = imageData.altText;
+      }
+
+      console.log('📤 Sending payload to Ghost...');
+      console.log('   Title:', postPayload.title);
+      console.log('   Lexical blocks:', lexicalContent.root.children.length);
+      if (imageData && imageData.url) {
+        console.log('   Featured image:', imageData.url);
+        console.log('   Image alt text:', imageData.altText);
+      }
       
       const post = await this.api.posts.add(postPayload);
       
@@ -36,6 +103,69 @@ class GhostService {
     } catch (error) {
       console.error('❌ Error creating draft:', error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Schedule a draft post for future publishing
+   * @param {string} postId - Post ID
+   * @param {Date|string} publishDate - When to publish
+   */
+  async scheduleDraft(postId, publishDate) {
+    try {
+      const publishAt = new Date(publishDate).toISOString();
+      
+      const post = await this.api.posts.edit({
+        id: postId,
+        status: 'scheduled',
+        published_at: publishAt
+      });
+      
+      console.log('📅 Post scheduled successfully!');
+      console.log('   Post ID:', post.id);
+      console.log('   Scheduled for:', new Date(post.published_at).toLocaleString());
+      
+      return post;
+    } catch (error) {
+      console.error('❌ Error scheduling post:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Publish a draft immediately
+   */
+  async publishPost(postId) {
+    try {
+      const post = await this.api.posts.edit({
+        id: postId,
+        status: 'published',
+        published_at: new Date().toISOString()
+      });
+      
+      console.log('✅ Post published:', post.title);
+      return post;
+    } catch (error) {
+      console.error('❌ Error publishing post:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all posts (for internal linking)
+   */
+  async getAllPosts(limit = 100) {
+    try {
+      const posts = await this.api.posts.browse({
+        limit: limit,
+        fields: 'id,title,slug,url',
+        filter: 'status:published'
+      });
+      
+      return posts;
+    } catch (error) {
+      console.error('❌ Error fetching posts:', error.message);
+      return [];
     }
   }
 
@@ -147,7 +277,7 @@ class GhostService {
     const match = regex.exec(htmlString);
     if (match) {
       return match[1]
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/<[^>]*>/g, '')
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
@@ -189,21 +319,6 @@ class GhostService {
     
     console.log('🧹 Content cleaned, length:', cleaned.length);
     return cleaned;
-  }
-
-  async publishPost(postId) {
-    try {
-      const post = await this.api.posts.edit({
-        id: postId,
-        status: 'published'
-      });
-      
-      console.log('✅ Post published:', post.title);
-      return post;
-    } catch (error) {
-      console.error('❌ Error publishing post:', error.message);
-      throw error;
-    }
   }
 
   async testConnection() {
