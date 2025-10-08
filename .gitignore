@@ -1,0 +1,80 @@
+# ===================================
+#   PYTHON / GENERAL IGNORE
+# ===================================
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment & secret files
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.db
+*.sqlite3
+
+# Local config files
+config.local.*
+secrets.json
+credentials.json
+sendmail.py
+test_mailgun.py
+
+# ===================================
+#   GIT / SYSTEM
+# ===================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+
+# ===================================
+#   BUILD / LOGS
+# ===================================
+*.log
+*.bak
+*.tmp
+*.temp
+*.out
+*.pid
+
+# ===================================
+#   GHOST AUTOMATION SPECIFIC
+# ===================================
+# Ignore automation cache / temp files
+automation_cache/
+ghost_logs/
+ghost_env/
+ghost_output/
+
+# ===================================
+#   NODE / JS (if used)
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===================================
+#   OS JUNK
+# ===================================
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
