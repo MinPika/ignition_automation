@@ -2,6 +2,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const bloggers = require('../config/bloggers');
 const contentTemplates = require('../config/contentTemplates');
+const TopicHistory = require('../utils/topicHistory');
 require('dotenv').config();
 
 class AIContentGenerator {
@@ -19,6 +20,9 @@ class AIContentGenerator {
       throw new Error(`Persona "${personaName}" not found`);
     }
     
+    // Initialize topic history for title checking
+    const topicHistory = new TopicHistory();
+    
     const prompt = this.buildEnhancedPrompt(persona, keyword, templateType);
     
     // Retry logic for content generation
@@ -28,8 +32,26 @@ class AIContentGenerator {
       return result.response.text();
     });
     
-    // Generate unique, varied title
-    const optimisedTitle = this.generateSEOTitle(keyword, templateType);
+    // Generate unique title with duplicate checking
+    let optimisedTitle;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    do {
+      optimisedTitle = this.generateSEOTitle(keyword, templateType);
+      attempts++;
+      
+      if (!topicHistory.isTitleUsed(optimisedTitle)) {
+        break;
+      }
+      
+      console.log(`⚠️  Title "${optimisedTitle}" already used, generating alternative...`);
+      
+    } while (attempts < maxAttempts);
+    
+    if (attempts >= maxAttempts) {
+      console.warn('⚠️  Could not generate unique title after 5 attempts, using last generated');
+    }
     
     // Generate meta description with variety
     const metaDesc = this.generateVariedMetaDescription(keyword);
@@ -163,39 +185,63 @@ class AIContentGenerator {
   }
 
   buildEnhancedPrompt(persona, keyword, templateType) {
-    const templateGuidance = contentTemplates[templateType];
-    
-    return `
+  const templateGuidance = contentTemplates[templateType];
+  
+  return `
 You are ${persona.name}, ${persona.brief}
 
 Write a comprehensive, SEO-optimised blog post in the tone and structure of McKinsey Insights.
 
 Topic: **${keyword}**
-Article Approach: **${templateGuidance.description}**
+Article Approach: **${templateType}**
+Template Sections: ${JSON.stringify(templateGuidance)}
+
+### CRITICAL KEYWORD INTEGRATION:
+**Main Keyword**: "${keyword}"
+
+YOU MUST:
+1. Include the EXACT keyword phrase "${keyword}" (not paraphrased):
+   - In the title (exact phrase)
+   - In first 100 words (exact phrase)
+   - In at least 2 H2 headings (can be part of longer heading)
+   - 8-10 times throughout the article naturally
+   - In meta description
+2. Target keyword density: 1-2% of total words
+3. Use related terms and variations for flow, but include exact phrase repeatedly
 
 ### CRITICAL CONTENT REQUIREMENTS:
 1. **Title** (MUST be unique and under 60 characters):
-   - DO NOT use formulaic patterns like "${keyword}: [Type]"
-   - Create an engaging, unique title that captures the essence
-   - Keep natural and varied - avoid repetitive structures
-   - Examples of good variety: "Rethinking Customer Retention", "Why Digital Transformation Fails", "The Hidden Economics of Pricing"
+   - MUST contain the exact keyword phrase: "${keyword}"
+   - Keep natural and engaging
+   - DO NOT truncate or modify the keyword
+   - Examples:
+     * "${keyword}: A Strategic Guide"
+     * "Mastering ${keyword}"
+     * "${keyword} in Practice"
+     * "${keyword}: What Leaders Need to Know"
 
 2. **H2 Headings** (CRITICAL - Create DISTINCT professional sections):
-   - ${templateGuidance.guidance}
+   - Follow template structure: ${templateGuidance.join(', ')}
    - NEVER use generic template names as headings
    - Each H2 must be unique and compelling
+   - Include keyword or variations in at least 2 H2 headings
    - Think like McKinsey: "The Strategic Context", "Root Causes", "What Leaders Must Do"
    - NO repetitive patterns - every article must feel fresh
 
 3. **First 100 words**:
-   - Must naturally include topic keywords
+   - Must include exact keyword phrase "${keyword}" at least once
    - Hook the reader immediately with compelling insight
    - Set context for business leaders
 
 4. **Content Requirements**:
    - Length: 1,400-1,600 words
-   - Natural keyword use throughout (avoid forced repetition)
-   - Include 2-3 external links to high-authority sources (McKinsey, BCG, Bain, HBR, Gartner, Deloitte)
+   - Include exact keyword phrase "${keyword}" 8-10 times naturally
+   - Include 3-4 external links to high-authority sources:
+     * McKinsey Insights (https://www.mckinsey.com/featured-insights)
+     * Harvard Business Review (https://hbr.org)
+     * Bain Insights (https://www.bain.com/insights)
+     * Gartner Research (https://www.gartner.com/en)
+     * Deloitte Insights (https://www2.deloitte.com/insights)
    - Cite at least 2 credible statistics from 2023-2025
    - Include 1-2 real-world examples or mini case studies
    - Add FAQ section at end with 3-4 questions (H2 "Frequently Asked Questions", H3 for each)
@@ -213,7 +259,7 @@ Article Approach: **${templateGuidance.description}**
    - NO American spellings
 
 7. **Structure Guidelines**:
-   - Introduction (compelling hook)
+   - Introduction (compelling hook with exact keyword)
    - 4-6 main sections with professional H2 headings
    - Each section: 2-4 paragraphs
    - FAQ section at end
@@ -223,7 +269,7 @@ Article Approach: **${templateGuidance.description}**
    - NO company branding, NO promotional CTAs
    - End with strategic insights and takeaways
    - Keep professional and thought-provoking
-   - Example: "Success in this domain requires both strategic clarity and operational discipline. Leaders who act now will be positioned to capture disproportionate value as markets evolve."
+   - Example: "Success in ${keyword} requires both strategic clarity and operational discipline. Leaders who act now will be positioned to capture disproportionate value as markets evolve."
 
 ### UNIQUENESS REQUIREMENTS:
 - Every article must feel DIFFERENT from others
@@ -237,19 +283,22 @@ ${this.getPersonaGuidelines(persona.name)}
 
 ### FORMAT REQUIREMENTS:
 - Return ONLY HTML content (no DOCTYPE, html, head, body tags)
-- Start with H1
+- Start with H1 containing the exact keyword: "${keyword}"
 - Use proper HTML: <h1>, <h2>, <h3>, <p>, <ul>, <ol>, <li>
 - Bold important phrases: <strong>text</strong>
 - External links: <a href="URL">anchor text</a>
 
 CRITICAL REMINDERS:
+- Use EXACT keyword phrase "${keyword}" 8-10 times
+- Title MUST contain exact keyword
+- First 100 words MUST contain exact keyword
 - Create UNIQUE, VARIED content every time
 - NO formulaic titles or headings
 - NO company branding at end
 - British English only
 - Professional McKinsey-quality insights
-  `.trim();
-  }
+`.trim();
+}
 
   getPersonaGuidelines(personaName) {
     const guidelines = {

@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-10-08T13:02:56.731Z",
+  "post": {
+    "title": "Differentiation Strategies: New Imperatives",
+    "keyword": "Differentiation Strategies that Actually Work",
+    "template": "Case Study Analysis",
+    "author": "Linh Nguyen"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Differentiation Strategies: New Imperatives",
+      "length": 43,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Explore Differentiation Strategies that Actually Work through proven methodologies. Transform strategy into sustainable results. Evidence-based approaches.",
+      "length": 155,
+      "optimal": true,
+      "score": 100
+    },
+    "keyword": {
+      "target": "Differentiation Strategies that Actually Work",
+      "inTitle": false,
+      "inMetaDescription": true,
+      "density": "0.99",
+      "score": 75
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 8,
+        "h3": 3,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 1217,
+      "paragraphCount": 22,
+      "avgWordsPerParagraph": 55,
+      "score": 100
+    },
+    "links": {
+      "total": 3,
+      "internalEstimate": 0,
+      "externalEstimate": 3,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 149,
+      "altTextOptimal": false,
+      "score": 90
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "Link may be broken: https://www.gartner.com/en",
+      "Link may be broken: https://www.mckinsey.com/featured-insights"
+    ]
+  },
+  "overall": {
+    "score": 92,
+    "grade": "A",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      }
+    ]
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "timestamp": "2025-10-08T12:48:25.532Z",
+  "post": {
+    "title": "Responding Industry Disruption At Scale",
+    "keyword": "Responding to Industry Disruption",
+    "template": "Vision & Outlook",
+    "author": "Rajiv Wijaya"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Responding Industry Disruption At Scale",
+      "length": 39,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Responding to Industry Disruption: Strategic perspectives from market leaders. Data-driven analysis and actionable guidance. Evidence-based approaches.",
+      "length": 151,
+      "optimal": true,
+      "score": 90
+    },
+    "keyword": {
+      "target": "Responding to Industry Disruption",
+      "inTitle": false,
+      "inMetaDescription": true,
+      "density": "0.00",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 6,
+        "h3": 4,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 1209,
+      "paragraphCount": 17,
+      "avgWordsPerParagraph": 71,
+      "score": 100
+    },
+    "links": {
+      "total": 1,
+      "internalEstimate": 0,
+      "externalEstimate": 1,
+      "score": 80
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 134,
+      "altTextOptimal": false,
+      "score": 90
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "Template sections may be missing: Executive Summary, Trends, Implications, Signals, Thoughts",
+      "Keyword density low (0.00%, recommend 1-2%)",
+      "Only 1 external link - recommend 2-3 for credibility",
+      "Link may be broken: https://www.mckinsey.com/featured-insights/future-of-work/what-the-metaverse-means-for-business"
+    ]
+  },
+  "overall": {
+    "score": 81,
+    "grade": "B",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      }
+    ]
+  }
+}

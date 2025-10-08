@@ -1,0 +1,73 @@
+{
+  "timestamp": "2025-10-08T13:01:22.063Z",
+  "post": {
+    "title": "Beyond Demographics: Modern Market Segmentation",
+    "keyword": "Beyond Demographics: Modern Market Segmentation",
+    "template": "Vision & Outlook",
+    "author": "Dr. Anya Sharma"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Beyond Demographics: Modern Market Segmentation",
+      "length": 47,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Master Beyond Demographics: Modern Market Segmentation with frameworks that deliver. Professional insights for strategic leaders. Evidence-based approaches.",
+      "length": 156,
+      "optimal": true,
+      "score": 100
+    },
+    "keyword": {
+      "target": "Beyond Demographics: Modern Market Segmentation",
+      "inTitle": true,
+      "inMetaDescription": true,
+      "density": "1.04",
+      "score": 100
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 7,
+        "h3": 4,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 1346,
+      "paragraphCount": 18,
+      "avgWordsPerParagraph": 75,
+      "score": 100
+    },
+    "links": {
+      "total": 3,
+      "internalEstimate": 0,
+      "externalEstimate": 3,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 148,
+      "altTextOptimal": false,
+      "score": 90
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "Link may be broken: https://www.gartner.com/en",
+      "Link may be broken: https://www.mckinsey.com/featured-insights"
+    ]
+  },
+  "overall": {
+    "score": 97,
+    "grade": "A",
+    "recommendations": []
+  }
+}

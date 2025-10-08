@@ -1,0 +1,79 @@
+{
+  "timestamp": "2025-10-08T12:59:07.898Z",
+  "post": {
+    "title": "Crafting Value Propositions That Resonate",
+    "keyword": "Crafting Value Propositions That Resonate",
+    "template": "Vision & Outlook",
+    "author": "Rajiv Wijaya"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Crafting Value Propositions That Resonate",
+      "length": 41,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Explore Crafting Value Propositions That Resonate through proven methodologies. Transform strategy into sustainable results. Evidence-based approaches.",
+      "length": 151,
+      "optimal": true,
+      "score": 100
+    },
+    "keyword": {
+      "target": "Crafting Value Propositions That Resonate",
+      "inTitle": true,
+      "inMetaDescription": true,
+      "density": "0.73",
+      "score": 100
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 8,
+        "h3": 3,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 1240,
+      "paragraphCount": 13,
+      "avgWordsPerParagraph": 95,
+      "score": 90
+    },
+    "links": {
+      "total": 0,
+      "internalEstimate": 0,
+      "externalEstimate": 0,
+      "score": 60
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 142,
+      "altTextOptimal": false,
+      "score": 90
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "No external links found - consider adding 2-3 authoritative sources"
+    ]
+  },
+  "overall": {
+    "score": 91,
+    "grade": "A",
+    "recommendations": [
+      {
+        "category": "Links",
+        "priority": "Medium",
+        "issue": "Only 0 links in content",
+        "fix": "Add 2-3 external links to authoritative sources"
+      }
+    ]
+  }
+}

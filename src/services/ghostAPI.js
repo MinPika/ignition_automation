@@ -1,4 +1,4 @@
-// src/services/ghostAPI.js
+// src/services/ghostAPI.js - Enhanced with better HTML parsing
 const GhostAdminAPI = require('@tryghost/admin-api');
 require('dotenv').config();
 
@@ -10,12 +10,21 @@ class GhostService {
       version: 'v5.0'
     });
   }
+  /**
+   * Find Ghost user by email
+   */
+  async findUserByEmail(email) {
+    try {
+      const users = await this.api.users.browse({ filter: `email:${email}` });
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      console.error('Error finding user:', error.message);
+      return null;
+    }
+  }
 
   /**
    * Create scheduled post (future publication)
-   * @param {Object} postData - Blog post data
-   * @param {Object} imageData - Image data (optional)
-   * @param {Date} publishDate - When to publish
    */
   async createScheduledPost(postData, imageData = null, publishDate) {
     try {
@@ -30,13 +39,26 @@ class GhostService {
         meta_title: postData.metaTitle,
         meta_description: postData.metaDescription,
         og_title: postData.ogTitle,
-        og_description: postData.ogDescription
+        og_description: postData.ogDescription,
+        tags: postData.tags || []
       };
 
       // Add featured image if available
       if (imageData && imageData.url) {
         postPayload.feature_image = imageData.url;
         postPayload.feature_image_alt = imageData.altText;
+      }
+
+      // Add author if email provided
+      if (postData.authorEmail) {
+        const author = await this.findUserByEmail(postData.authorEmail);
+        if (author) {
+          postPayload.authors = [{ id: author.id }];
+          console.log(`👤 Author assigned: ${author.name} (${author.email})`);
+        } else {
+          console.warn(`⚠️  Author not found for email: ${postData.authorEmail}`);
+          console.warn('   Post will use default author. Please setup authors first.');
+        }
       }
 
       console.log('📤 Sending scheduled post to Ghost...');
@@ -54,14 +76,15 @@ class GhostService {
       return post;
     } catch (error) {
       console.error('❌ Error creating scheduled post:', error.message);
+      if (error.response) {
+        console.error('   Ghost API Response:', JSON.stringify(error.response.data, null, 2));
+      }
       throw error;
     }
   }
 
   /**
    * Create draft with optional featured image
-   * @param {Object} postData - Blog post data
-   * @param {Object} imageData - Image data (optional)
    */
   async createDraft(postData, imageData = null) {
     try {
@@ -75,13 +98,26 @@ class GhostService {
         meta_title: postData.metaTitle,
         meta_description: postData.metaDescription,
         og_title: postData.ogTitle,
-        og_description: postData.ogDescription
+        og_description: postData.ogDescription,
+        tags: postData.tags || []
       };
 
       // Add featured image if available
       if (imageData && imageData.url) {
         postPayload.feature_image = imageData.url;
         postPayload.feature_image_alt = imageData.altText;
+      }
+
+      // Add author if email provided
+      if (postData.authorEmail) {
+        const author = await this.findUserByEmail(postData.authorEmail);
+        if (author) {
+          postPayload.authors = [{ id: author.id }];
+          console.log(`👤 Author assigned: ${author.name} (${author.email})`);
+        } else {
+          console.warn(`⚠️  Author not found for email: ${postData.authorEmail}`);
+          console.warn('   Post will use default author. Please setup authors first.');
+        }
       }
 
       console.log('📤 Sending payload to Ghost...');
@@ -102,14 +138,15 @@ class GhostService {
       return post;
     } catch (error) {
       console.error('❌ Error creating draft:', error.message);
+      if (error.response) {
+        console.error('   Ghost API Response:', JSON.stringify(error.response.data, null, 2));
+      }
       throw error;
     }
   }
 
   /**
    * Schedule a draft post for future publishing
-   * @param {string} postId - Post ID
-   * @param {Date|string} publishDate - When to publish
    */
   async scheduleDraft(postId, publishDate) {
     try {
@@ -169,97 +206,45 @@ class GhostService {
     }
   }
 
+  /**
+   * Enhanced HTML to Lexical conversion with error recovery
+   */
   htmlToLexical(html) {
     const children = [];
-    const lines = html.split(/(?=<h[1-6]>)|(?=<p>)|(?=<ul>)|(?=<ol>)/).filter(line => line.trim());
-    let skipFirstH1 = false;
     
-    for (let i = 0; i < lines.length; i++) {
-      const section = lines[i].trim();
+    try {
+      // Split by major block elements
+      const blocks = this.parseHTMLBlocks(html);
+      let skipFirstH1 = false;
       
-      if (section.includes('<h1>')) {
-        // Skip the first H1 since Ghost will use the title
-        if (!skipFirstH1) {
-          skipFirstH1 = true;
-          continue;
-        }
-        const text = this.extractText(section, 'h1');
-        if (text) {
-          children.push({
-            type: 'heading',
-            tag: 'h1',
-            children: [{ type: 'text', text: text }]
-          });
-        }
-      }
-      else if (section.includes('<h2>')) {
-        const text = this.extractText(section, 'h2');
-        if (text) {
-          children.push({
-            type: 'heading',
-            tag: 'h2', 
-            children: [{ type: 'text', text: text }]
-          });
-        }
-      }
-      else if (section.includes('<h3>')) {
-        const text = this.extractText(section, 'h3');
-        if (text) {
-          children.push({
-            type: 'heading',
-            tag: 'h3',
-            children: [{ type: 'text', text: text }]
-          });
-        }
-      }
-      else if (section.includes('<ul>')) {
-        const listItems = this.extractListItems(section, 'ul');
-        if (listItems.length > 0) {
-          children.push({
-            type: 'list',
-            listType: 'bullet',
-            children: listItems.map(item => ({
-              type: 'listitem',
-              children: [{ 
-                type: 'paragraph',
-                children: [{ type: 'text', text: item }]
-              }]
-            }))
-          });
-        }
-      }
-      else if (section.includes('<ol>')) {
-        const listItems = this.extractListItems(section, 'ol');
-        if (listItems.length > 0) {
-          children.push({
-            type: 'list',
-            listType: 'number',
-            children: listItems.map(item => ({
-              type: 'listitem', 
-              children: [{
-                type: 'paragraph',
-                children: [{ type: 'text', text: item }]
-              }]
-            }))
-          });
-        }
-      }
-      else if (section.includes('<p>')) {
-        const paragraphs = section.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
-        if (paragraphs) {
-          paragraphs.forEach(p => {
-            const text = this.extractText(p, 'p');
-            if (text && text.length > 0) {
-              children.push({
-                type: 'paragraph',
-                children: [{ type: 'text', text: text }]
-              });
+      for (const block of blocks) {
+        try {
+          const lexicalNode = this.convertBlockToLexical(block, skipFirstH1);
+          
+          if (lexicalNode) {
+            // Handle H1 skipping
+            if (block.type === 'h1' && !skipFirstH1) {
+              skipFirstH1 = true;
+              continue;
             }
-          });
+            
+            children.push(lexicalNode);
+          }
+        } catch (blockError) {
+          console.warn('⚠️  Failed to convert block, skipping:', blockError.message);
+          // Continue with next block instead of failing completely
         }
       }
+      
+    } catch (error) {
+      console.error('❌ Critical error in HTML to Lexical conversion:', error.message);
+      // Return minimal valid structure
+      children.push({
+        type: 'paragraph',
+        children: [{ type: 'text', text: 'Content conversion error - please edit manually' }]
+      });
     }
-    
+
     return {
       root: {
         type: 'root',
@@ -272,31 +257,235 @@ class GhostService {
     };
   }
 
-  extractText(htmlString, tag) {
-    const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
-    const match = regex.exec(htmlString);
-    if (match) {
-      return match[1]
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .trim();
+  /**
+   * Parse HTML into structured blocks
+   */
+  parseHTMLBlocks(html) {
+    const blocks = [];
+    
+    // Match all major block elements
+    const blockRegex = /<(h[1-6]|p|ul|ol|blockquote|pre)[^>]*>([\s\S]*?)<\/\1>/gi;
+    let match;
+    
+    while ((match = blockRegex.exec(html)) !== null) {
+      const tag = match[1].toLowerCase();
+      const content = match[2];
+      
+      blocks.push({
+        type: tag,
+        rawContent: content,
+        fullMatch: match[0]
+      });
     }
-    return '';
+    
+    return blocks;
   }
 
-  extractListItems(htmlString, listType) {
+  /**
+   * Convert a single block to Lexical format
+   */
+  convertBlockToLexical(block, skipFirstH1) {
+    const { type, rawContent } = block;
+    
+    // Headings
+    if (type.startsWith('h')) {
+      const level = parseInt(type.charAt(1));
+      const text = this.extractTextContent(rawContent);
+      
+      if (text && text.trim()) {
+        return {
+          type: 'heading',
+          tag: type,
+          children: this.parseInlineContent(rawContent)
+        };
+      }
+      return null;
+    }
+    
+    // Paragraphs
+    if (type === 'p') {
+      const text = this.extractTextContent(rawContent);
+      
+      if (text && text.trim()) {
+        return {
+          type: 'paragraph',
+          children: this.parseInlineContent(rawContent)
+        };
+      }
+      return null;
+    }
+    
+    // Unordered lists
+    if (type === 'ul') {
+      const items = this.extractListItems(rawContent);
+      
+      if (items.length > 0) {
+        return {
+          type: 'list',
+          listType: 'bullet',
+          children: items.map(item => ({
+            type: 'listitem',
+            children: [{
+              type: 'paragraph',
+              children: this.parseInlineContent(item)
+            }]
+          }))
+        };
+      }
+      return null;
+    }
+    
+    // Ordered lists
+    if (type === 'ol') {
+      const items = this.extractListItems(rawContent);
+      
+      if (items.length > 0) {
+        return {
+          type: 'list',
+          listType: 'number',
+          children: items.map(item => ({
+            type: 'listitem',
+            children: [{
+              type: 'paragraph',
+              children: this.parseInlineContent(item)
+            }]
+          }))
+        };
+      }
+      return null;
+    }
+    
+    // Blockquote
+    if (type === 'blockquote') {
+      const text = this.extractTextContent(rawContent);
+      
+      if (text && text.trim()) {
+        return {
+          type: 'quote',
+          children: [{
+            type: 'paragraph',
+            children: [{ type: 'text', text: text.trim() }]
+          }]
+        };
+      }
+      return null;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Parse inline content (bold, italic, links)
+   */
+  parseInlineContent(html) {
+    const nodes = [];
+    
+    // Simple approach: extract text and check for formatting
+    const tempDiv = { innerHTML: html };
+    
+    // Check for links
+    const linkRegex = /<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = linkRegex.exec(html)) !== null) {
+      // Add text before link
+      if (match.index > lastIndex) {
+        const beforeText = html.substring(lastIndex, match.index);
+        const cleanText = this.extractTextContent(beforeText);
+        if (cleanText) {
+          nodes.push(...this.parseFormattedText(beforeText));
+        }
+      }
+      
+      // Add link
+      const linkText = this.extractTextContent(match[2]);
+      const linkUrl = match[1];
+      
+      if (linkText && linkUrl) {
+        nodes.push({
+          type: 'link',
+          url: linkUrl,
+          children: [{ type: 'text', text: linkText }]
+        });
+      }
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < html.length) {
+      const remainingText = html.substring(lastIndex);
+      nodes.push(...this.parseFormattedText(remainingText));
+    }
+    
+    // If no links found, just parse formatted text
+    if (nodes.length === 0) {
+      nodes.push(...this.parseFormattedText(html));
+    }
+    
+    return nodes.length > 0 ? nodes : [{ type: 'text', text: this.extractTextContent(html) }];
+  }
+
+  /**
+   * Parse formatted text (bold, italic)
+   */
+  parseFormattedText(html) {
+    const nodes = [];
+    const text = this.extractTextContent(html);
+    
+    if (!text || !text.trim()) {
+      return [];
+    }
+    
+    // Check for bold
+    const hasBold = html.includes('<strong>') || html.includes('<b>');
+    const hasItalic = html.includes('<em>') || html.includes('<i>');
+    
+    if (hasBold || hasItalic) {
+      // For now, just return plain text
+      // TODO: Implement proper inline formatting parsing
+      nodes.push({
+        type: 'text',
+        text: text.trim(),
+        format: hasBold ? 1 : 0 // 1 = bold in Lexical
+      });
+    } else {
+      nodes.push({
+        type: 'text',
+        text: text.trim()
+      });
+    }
+    
+    return nodes;
+  }
+
+  /**
+   * Extract plain text from HTML
+   */
+  extractTextContent(html) {
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+  }
+
+  /**
+   * Extract list items
+   */
+  extractListItems(html) {
     const items = [];
     const regex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
     let match;
     
-    while ((match = regex.exec(htmlString)) !== null) {
-      const text = match[1]
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .trim();
+    while ((match = regex.exec(html)) !== null) {
+      const text = match[1].trim();
       if (text) {
         items.push(text);
       }
@@ -305,6 +494,9 @@ class GhostService {
     return items;
   }
 
+  /**
+   * Clean HTML content
+   */
   cleanContentForGhost(content) {
     let cleaned = content
       .replace(/<!DOCTYPE[^>]*>/gi, '')
@@ -321,6 +513,9 @@ class GhostService {
     return cleaned;
   }
 
+  /**
+   * Test connection
+   */
   async testConnection() {
     try {
       const result = await this.api.posts.browse({ limit: 1 });

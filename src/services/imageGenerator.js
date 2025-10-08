@@ -1,4 +1,4 @@
-// src/services/imageGenerator.js
+// src/services/imageGenerator.js - Enhanced with retry logic
 const { GoogleGenAI } = require("@google/genai");
 const fs = require("fs");
 const path = require("path");
@@ -11,6 +11,8 @@ class ImageGenerator {
       apiKey: process.env.GEMINI_API_KEY,
     });
     this.model = "gemini-2.5-flash-image-preview";
+    this.maxRetries = 3;
+    this.retryDelay = 5000;
     
     this.imageDir = path.join(process.cwd(), "generated/images");
     if (!fs.existsSync(this.imageDir)) {
@@ -22,42 +24,121 @@ class ImageGenerator {
       key: process.env.GHOST_ADMIN_API_KEY,
       version: "v5.0",
     });
+    
+    // Track used styles for variety
+    this.styleHistoryFile = path.join(process.cwd(), "generated", "image-style-history.json");
+    this.ensureStyleHistory();
   }
 
-  /**
-   * Generate abstract featured image (McKinsey/GitHub Insights style)
-   */
-  async generateFeaturedImage(keyword, templateType, persona) {
-    const prompt = this.buildAbstractImagePrompt(keyword, templateType);
-    const filename = this.generateSEOFilename(keyword, templateType);
+  ensureStyleHistory() {
+    if (!fs.existsSync(this.styleHistoryFile)) {
+      fs.writeFileSync(this.styleHistoryFile, JSON.stringify({ recentStyles: [] }));
+    }
+  }
 
+  loadStyleHistory() {
     try {
-      console.log(`🎨 Generating abstract image for ${keyword}...`);
-      const filePath = await this.generateImageFromPrompt(prompt, filename);
+      const data = fs.readFileSync(this.styleHistoryFile, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      return { recentStyles: [] };
+    }
+  }
 
-      console.log("☁️  Uploading to Ghost...");
-      const ghostUrl = await this.uploadToGhost(filePath);
-
-      return {
-        filename,
-        path: filePath,
-        url: ghostUrl,
-        altText: this.generateSEOAltText(keyword, templateType),
-        provider: "gemini-abstract",
-      };
-    } catch (err) {
-      console.error("⚠️  Image generation failed:", err.message);
-      return this.getFallback(keyword, templateType);
+  saveStyleHistory(history) {
+    try {
+      fs.writeFileSync(this.styleHistoryFile, JSON.stringify(history, null, 2));
+    } catch (error) {
+      console.error('Failed to save style history:', error.message);
     }
   }
 
   /**
-   * Build prompt for DIVERSE abstract images
-   * Multiple visual styles, colors, and compositions
+   * Generate abstract featured image with retry logic
    */
-  buildAbstractImagePrompt(keyword, templateType) {
-    // Randomly select visual style for variety
-    const visualStyles = [
+  async generateFeaturedImage(keyword, templateType, persona) {
+    const style = this.selectUnusedStyle();
+    const prompt = this.buildAbstractImagePrompt(keyword, templateType, style);
+    const filename = this.generateSEOFilename(keyword, templateType);
+
+    let lastError;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        console.log(`🎨 Generating image (attempt ${attempt}/${this.maxRetries})...`);
+        
+        const filePath = await this.generateImageFromPrompt(prompt, filename);
+        
+        console.log("☁️  Uploading to Ghost...");
+        const ghostUrl = await this.uploadToGhostWithRetry(filePath);
+
+        // Record used style
+        this.recordUsedStyle(style.name);
+
+        return {
+          filename,
+          path: filePath,
+          url: ghostUrl,
+          altText: this.generateSEOAltText(keyword, templateType),
+          provider: "gemini-abstract",
+          style: style.name
+        };
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`⚠️  Attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < this.maxRetries) {
+          const delay = this.retryDelay * attempt;
+          console.log(`⏳ Retrying in ${delay/1000} seconds...`);
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    console.error(`❌ All ${this.maxRetries} image generation attempts failed`);
+    console.error(`Last error: ${lastError.message}`);
+    
+    // Return fallback
+    return this.getFallback(keyword, templateType);
+  }
+
+  /**
+   * Select a style that hasn't been used recently
+   */
+  selectUnusedStyle() {
+    const visualStyles = this.getAllVisualStyles();
+    const history = this.loadStyleHistory();
+    const recentStyles = history.recentStyles || [];
+
+    // Filter out recently used styles
+    const availableStyles = visualStyles.filter(s => !recentStyles.includes(s.name));
+    
+    if (availableStyles.length > 0) {
+      return availableStyles[Math.floor(Math.random() * availableStyles.length)];
+    }
+    
+    // All styles used, reset and pick random
+    console.log('🔄 All image styles used, resetting history');
+    this.saveStyleHistory({ recentStyles: [] });
+    return visualStyles[Math.floor(Math.random() * visualStyles.length)];
+  }
+
+  recordUsedStyle(styleName) {
+    const history = this.loadStyleHistory();
+    const recentStyles = history.recentStyles || [];
+    
+    // Add to front, remove if already exists
+    const updated = [styleName, ...recentStyles.filter(s => s !== styleName)];
+    
+    // Keep last 5 styles
+    const trimmed = updated.slice(0, 5);
+    
+    this.saveStyleHistory({ recentStyles: trimmed });
+  }
+
+  getAllVisualStyles() {
+    return [
       {
         name: 'geometric',
         description: '3D geometric shapes (cubes, spheres, pyramids), floating or intersecting, sharp clean lines',
@@ -109,10 +190,12 @@ class ImageGenerator {
         colors: 'black, bright red accent on white background'
       }
     ];
+  }
 
-    // Randomly select a style
-    const style = visualStyles[Math.floor(Math.random() * visualStyles.length)];
-
+  /**
+   * Build prompt for DIVERSE abstract images
+   */
+  buildAbstractImagePrompt(keyword, templateType, style) {
     const baseRequirements = `
 CRITICAL REQUIREMENTS:
 - NO people, faces, or human figures
@@ -130,13 +213,13 @@ Composition: Clean, balanced, visually striking
 
 Abstract concept representing: ${keyword}
 Visual metaphor: ${this.getVisualMetaphor(keyword)}
+Template guidance: ${this.getTemplateVisualGuidance(templateType)}
 `;
 
     return baseRequirements;
   }
 
   getVisualMetaphor(keyword) {
-    // Generate visual metaphor based on keyword content
     const metaphors = {
       'transformation': 'metamorphosis, evolution, change in form',
       'growth': 'expansion, ascending forms, upward movement',
@@ -152,10 +235,19 @@ Visual metaphor: ${this.getVisualMetaphor(keyword)}
       'competitive': 'contrast, differentiation, standing out',
       'operational': 'machinery, precision, efficiency',
       'excellence': 'perfection, ideal form, pinnacle',
-      'sustainable': 'cycles, renewal, continuous flow'
+      'sustainable': 'cycles, renewal, continuous flow',
+      'retention': 'bonds, connections, holding together',
+      'pricing': 'scales, balance, value exchange',
+      'segmentation': 'divisions, categories, distinct groups',
+      'revenue': 'streams, flowing abundance, growth curves',
+      'culture': 'organic networks, living systems',
+      'analytics': 'patterns, insights, clarity emerging',
+      'journey': 'pathways, progression, milestones',
+      'positioning': 'elevation, standing out, prominence',
+      'productivity': 'efficiency, streamlined flow, optimization',
+      'roi': 'returns, cycles, value multiplication'
     };
 
-    // Find relevant metaphor
     for (const [key, metaphor] of Object.entries(metaphors)) {
       if (keyword.toLowerCase().includes(key)) {
         return metaphor;
@@ -192,14 +284,14 @@ Visual metaphor: ${this.getVisualMetaphor(keyword)}
       .replace(/[^a-z0-9-]/g, "")
       .substring(0, 20);
 
-    return `${slug}-${templateSlug}-abstract-${Date.now()}.png`;
+    return `${slug}-${templateSlug}-${Date.now()}.png`;
   }
 
   /**
    * Generate keyword-rich alt text (SEO optimised)
    */
   generateSEOAltText(keyword, templateType) {
-    return `Abstract visualisation representing ${keyword} for ${templateType} - B2B marketing insights`;
+    return `Abstract visualization representing ${keyword} for ${templateType} - B2B marketing insights by Ignition Studio`;
   }
 
   /**
@@ -212,7 +304,9 @@ Visual metaphor: ${this.getVisualMetaphor(keyword)}
     });
 
     const candidate = response.candidates?.[0];
-    if (!candidate) throw new Error("No candidates returned by Gemini");
+    if (!candidate) {
+      throw new Error("No candidates returned by Gemini");
+    }
 
     for (const part of candidate.content.parts) {
       if (part.inlineData) {
@@ -228,18 +322,30 @@ Visual metaphor: ${this.getVisualMetaphor(keyword)}
   }
 
   /**
-   * Upload image to Ghost
+   * Upload image to Ghost with retry logic
    */
-  async uploadToGhost(filePath) {
-    try {
-      // Ghost Admin API expects file path as string, not stream
-      const result = await this.ghost.images.upload({ file: filePath });
-      console.log("✅ Uploaded to Ghost:", result.url);
-      return result.url;
-    } catch (err) {
-      console.error("❌ Ghost upload failed:", err.message);
-      throw err;
+  async uploadToGhostWithRetry(filePath) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        const result = await this.ghost.images.upload({ file: filePath });
+        console.log("✅ Uploaded to Ghost:", result.url);
+        return result.url;
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`⚠️  Ghost upload attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < this.maxRetries) {
+          const delay = this.retryDelay * attempt;
+          console.log(`⏳ Retrying upload in ${delay/1000} seconds...`);
+          await this.sleep(delay);
+        }
+      }
     }
+    
+    throw new Error(`Ghost upload failed after ${this.maxRetries} attempts: ${lastError.message}`);
   }
 
   /**
@@ -253,8 +359,43 @@ Visual metaphor: ${this.getVisualMetaphor(keyword)}
       url: null,
       altText: this.generateSEOAltText(keyword, templateType),
       provider: "fallback",
-      note: "No image generated - please add abstract image manually in Ghost editor",
+      note: "Image generation failed after all retries - post will be created without featured image",
     };
+  }
+
+  /**
+   * Cleanup old/failed images
+   */
+  cleanupOldImages(daysOld = 7) {
+    try {
+      const files = fs.readdirSync(this.imageDir);
+      const now = Date.now();
+      const maxAge = daysOld * 24 * 60 * 60 * 1000;
+      
+      let deletedCount = 0;
+      
+      files.forEach(file => {
+        const filePath = path.join(this.imageDir, file);
+        const stats = fs.statSync(filePath);
+        const age = now - stats.mtimeMs;
+        
+        if (age > maxAge) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      });
+      
+      console.log(`🗑️  Cleaned up ${deletedCount} old image(s)`);
+      return deletedCount;
+      
+    } catch (error) {
+      console.error('Failed to cleanup images:', error.message);
+      return 0;
+    }
+  }
+
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -268,7 +409,14 @@ Visual metaphor: ${this.getVisualMetaphor(keyword)}
         "Strategic Framework",
         "Dr. Anya Sharma"
       );
-      console.log("✅ Test completed:", result);
+      
+      if (result.url) {
+        console.log("✅ Test completed successfully!");
+        console.log("   Image URL:", result.url);
+      } else {
+        console.log("⚠️  Test completed with fallback (no image)");
+      }
+      
       return true;
     } catch (err) {
       console.error("❌ Test failed:", err.message);

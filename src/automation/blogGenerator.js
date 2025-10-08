@@ -4,6 +4,8 @@ const GhostService = require('../services/ghostAPI');
 const ImageGenerator = require('../services/ImageGenerator');
 const TopicHistory = require('../utils/topicHistory');
 const PublishingScheduler = require('../services/scheduler');
+const ContentValidator = require('../utils/contentValidator');
+const SEOReport = require('../utils/seoReport');
 const keywords = require('../config/keywords');
 const bloggers = require('../config/bloggers');
 const contentTemplates = require('../config/contentTemplates');
@@ -15,18 +17,20 @@ class BlogGenerator {
     this.imageGenerator = new ImageGenerator();
     this.topicHistory = new TopicHistory();
     this.scheduler = new PublishingScheduler();
+    this.validator = new ContentValidator();
+    this.seoReport = new SEOReport();
   }
 
   /**
    * Smart topic selection with deduplication
    */
-  selectTopic(persona) {
+  selectTopic(personaName) {
     const allKeywords = Object.values(keywords);
     const allTemplates = Object.keys(contentTemplates);
     
     // Get an unused combination for this persona
     const topic = this.topicHistory.getAvailableTopic(
-      persona,
+      personaName,
       allKeywords,
       allTemplates
     );
@@ -34,15 +38,18 @@ class BlogGenerator {
     return topic;
   }
 
+  /**
+   * Get random persona (returns full persona object)
+   */
   getRandomPersona() {
     const randomIndex = Math.floor(Math.random() * bloggers.length);
-    return bloggers[randomIndex].name;
+    return bloggers[randomIndex];
   }
 
   /**
-   * Main method: Generate complete blog with image and SEO
+   * Main method: Generate complete blog with image, SEO, and validation
    * @param {string} customKeyword - Optional keyword
-   * @param {string} customPersona - Optional persona
+   * @param {string|object} customPersona - Optional persona name or object
    * @param {string} customTemplate - Optional template
    * @param {Date} publishDate - Optional scheduled publish date
    */
@@ -50,9 +57,29 @@ class BlogGenerator {
     try {
       console.log('🚀 Starting enhanced blog generation process...\n');
       
-      // Select persona
-      const persona = customPersona || this.getRandomPersona();
-      console.log(`👤 Selected persona: ${persona}`);
+      // Select persona - handle both string name and object
+      let persona, personaName;
+      
+      if (customPersona) {
+        if (typeof customPersona === 'string') {
+          // Find persona by name
+          const found = bloggers.find(b => b.name === customPersona);
+          if (!found) {
+            throw new Error(`Persona "${customPersona}" not found`);
+          }
+          persona = found;
+          personaName = found.name;
+        } else {
+          persona = customPersona;
+          personaName = customPersona.name;
+        }
+      } else {
+        persona = this.getRandomPersona();
+        personaName = persona.name;
+      }
+      
+      console.log(`👤 Selected persona: ${personaName}`);
+      console.log(`📧 Author email: ${persona.email}`);
       
       // Smart topic selection with deduplication
       let keyword, template;
@@ -63,14 +90,14 @@ class BlogGenerator {
       } else if (customKeyword && !customTemplate) {
         const allTemplates = Object.keys(contentTemplates);
         const topic = this.topicHistory.getAvailableTopic(
-          persona,
+          personaName,
           [customKeyword],
           allTemplates
         );
         keyword = customKeyword;
         template = topic.template;
       } else {
-        const topic = this.selectTopic(persona);
+        const topic = this.selectTopic(personaName);
         keyword = topic.keyword;
         template = topic.template;
       }
@@ -78,21 +105,21 @@ class BlogGenerator {
       console.log(`📝 Configuration:`);
       console.log(`   Topic: ${keyword}`);
       console.log(`   Template: ${template}`);
-      console.log(`   Author: ${persona}`);
+      console.log(`   Author: ${personaName}`);
       if (publishDate) {
         console.log(`   Scheduled for: ${this.scheduler.formatPublishDate(publishDate)}`);
       }
       console.log('');
       
-      // Check if already used
-      if (this.topicHistory.isTopicUsed(persona, keyword, template)) {
+      // Check if already used (warning only)
+      if (this.topicHistory.isTopicUsed(personaName, keyword, template)) {
         console.log('⚠️  Warning: This topic combination was recently used by this persona');
         console.log('   Consider selecting a different combination for variety\n');
       }
       
       // Generate content with AI
       console.log('🤖 Generating content with AI...');
-      const blogPost = await this.aiGenerator.generateBlogPost(persona, keyword, template);
+      const blogPost = await this.aiGenerator.generateBlogPost(personaName, keyword, template);
       
       console.log('✅ Content generated successfully!');
       console.log(`   Title: ${blogPost.title}`);
@@ -103,16 +130,57 @@ class BlogGenerator {
       const imageResult = await this.imageGenerator.generateFeaturedImage(
         keyword,
         template,
-        persona
+        personaName
       );
       
       if (imageResult.url) {
         console.log('✅ Featured image generated and uploaded!');
         console.log(`   URL: ${imageResult.url}`);
+        console.log(`   Style: ${imageResult.style || 'N/A'}`);
         console.log(`   Alt text: ${imageResult.altText}\n`);
       } else {
         console.log('⚠️  Image generation failed, proceeding without featured image\n');
       }
+      
+      // ===== CONTENT VALIDATION =====
+      console.log('🔍 Validating content quality...\n');
+      const validation = await this.validator.validatePost(blogPost, imageResult, template);
+      
+      if (!validation.valid) {
+        console.error('\n❌ Content validation failed! Post will NOT be published.\n');
+        console.error('Errors found:');
+        validation.errors.forEach(err => console.error(`   ✗ ${err}`));
+        console.error('\n💡 Please review AI prompt or regenerate content\n');
+        
+        throw new Error('Content validation failed - see errors above');
+      }
+      
+      console.log('✅ Content validation passed!\n');
+      
+      if (validation.warnings.length > 0) {
+        console.log('📋 Content Metrics:');
+        console.log(`   Word count: ${validation.metrics.wordCount}`);
+        console.log(`   Paragraphs: ${validation.metrics.paragraphCount}`);
+        console.log(`   Headings: ${validation.metrics.headingCount}`);
+        console.log(`   Links: ${validation.metrics.linkCount}\n`);
+      }
+      // ===== END VALIDATION =====
+      
+      // ===== SEO REPORT GENERATION =====
+      console.log('📊 Generating SEO quality report...\n');
+      const seoReportData = this.seoReport.generateReport(
+        blogPost,
+        validation,
+        imageResult,
+        { persona: personaName, keyword, template }
+      );
+      
+      this.seoReport.printSummary(seoReportData);
+      
+      // Save report to file
+      this.seoReport.saveReport(seoReportData, blogPost.title);
+      console.log('');
+      // ===== END SEO REPORT =====
       
       // Create draft or scheduled post in Ghost
       let createdPost;
@@ -132,14 +200,17 @@ class BlogGenerator {
       console.log(`🔗 Edit URL: ${process.env.GHOST_API_URL}/ghost/#/editor/post/${createdPost.id}`);
       console.log(`👀 Preview: ${createdPost.url || 'Available after publishing'}\n`);
       
-      // Record topic in history
-      this.topicHistory.recordTopic(persona, keyword, template);
+      // Record topic and title in history
+      this.topicHistory.recordTopic(personaName, keyword, template);
+      this.topicHistory.recordTitle(blogPost.title);
       
       return {
         post: createdPost,
         image: imageResult,
+        validation: validation,
+        seoReport: seoReportData,
         configuration: {
-          persona,
+          persona: personaName,
           keyword,
           template,
           publishDate: publishDate || null
@@ -214,10 +285,18 @@ class BlogGenerator {
       });
     }
     
+    if (results.length > 0) {
+      console.log('\n📊 Average SEO Score:', Math.round(
+        results.reduce((sum, r) => sum + r.seoReport.overall.score, 0) / results.length
+      ));
+    }
+    
     if (errors.length > 0) {
-      console.log('\nFailed posts:');
+      console.log('\n❌ Failed posts:');
       errors.forEach(e => console.log(`  - Post ${e.index}: ${e.error}`));
     }
+    
+    console.log('');
     
     return { results, errors };
   }
@@ -284,10 +363,6 @@ class BlogGenerator {
     return info;
   }
 
-  sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   /**
    * Publish a draft post
    */
@@ -316,22 +391,21 @@ class BlogGenerator {
     let hasRepetition = false;
     
     for (const persona in stats) {
+      if (persona === '_global') continue;
+      
       console.log(`\n👤 ${persona}:`);
       console.log(`   Total topics used: ${stats[persona].totalUsed}`);
       console.log(`   Recent topics:`);
       
       const topics = stats[persona].recentTopics;
-      const keywordCounts = {};
       
-      topics.forEach((topic, i) => {
+      topics.slice(0, 10).forEach((topic, i) => {
         const [keyword, template] = topic.split('::');
         console.log(`     ${i + 1}. ${keyword} (${template})`);
-        
-        // Track keyword repetition
-        keywordCounts[keyword] = (keywordCounts[keyword] || 0) + 1;
       });
       
       // Warning if same keyword used too much
+      const keywordCounts = stats[persona].keywordCounts || {};
       for (const [keyword, count] of Object.entries(keywordCounts)) {
         if (count > 2) {
           console.log(`   ⚠️  WARNING: "${keyword}" used ${count} times - consider using other topics`);
@@ -340,9 +414,21 @@ class BlogGenerator {
       }
     }
     
+    // Global title statistics
+    if (stats._global) {
+      console.log(`\n🌐 Global Statistics:`);
+      console.log(`   Total unique titles: ${stats._global.totalTitles}`);
+      console.log(`   Recent titles (last 10):`);
+      stats._global.recentTitles.slice(0, 10).forEach((title, i) => {
+        console.log(`     ${i + 1}. ${title}`);
+      });
+    }
+    
     if (hasRepetition) {
       console.log('\n💡 TIP: Run "npm run clear-history" to reset and allow more variety');
     }
+    
+    console.log('');
     
     return stats;
   }
@@ -364,6 +450,92 @@ class BlogGenerator {
       console.error('❌ System test failed:', error.message);
       return false;
     }
+  }
+
+  /**
+   * Cleanup old generated files
+   */
+  async cleanup(daysOld = 7) {
+    try {
+      console.log(`🗑️  Cleaning up files older than ${daysOld} days...\n`);
+      
+      const imageCount = this.imageGenerator.cleanupOldImages(daysOld);
+      console.log(`   Removed ${imageCount} old image(s)`);
+      
+      console.log('\n✅ Cleanup complete!');
+      return { images: imageCount };
+    } catch (error) {
+      console.error('❌ Cleanup failed:', error.message);
+      return { images: 0 };
+    }
+  }
+
+  /**
+   * Validate system health
+   */
+  async healthCheck() {
+    console.log('\n🏥 System Health Check\n');
+    console.log('='.repeat(60));
+    
+    const health = {
+      ai: false,
+      ghost: false,
+      image: false,
+      history: false,
+      overall: false
+    };
+    
+    // Test AI
+    try {
+      await this.aiGenerator.testConnection();
+      health.ai = true;
+      console.log('✅ AI Service: Healthy');
+    } catch (error) {
+      console.log('❌ AI Service: Failed -', error.message);
+    }
+    
+    // Test Ghost
+    try {
+      await this.ghostService.testConnection();
+      health.ghost = true;
+      console.log('✅ Ghost API: Healthy');
+    } catch (error) {
+      console.log('❌ Ghost API: Failed -', error.message);
+    }
+    
+    // Test Image
+    try {
+      // Don't actually generate, just check if service initializes
+      health.image = true;
+      console.log('✅ Image Service: Healthy');
+    } catch (error) {
+      console.log('❌ Image Service: Failed -', error.message);
+    }
+    
+    // Test History
+    try {
+      health.history = this.topicHistory.validateHistory();
+      if (health.history) {
+        console.log('✅ History Files: Healthy');
+      }
+    } catch (error) {
+      console.log('❌ History Files: Failed -', error.message);
+    }
+    
+    health.overall = health.ai && health.ghost && health.image && health.history;
+    
+    console.log('\n' + '='.repeat(60));
+    console.log(`Overall Status: ${health.overall ? '✅ HEALTHY' : '❌ DEGRADED'}`);
+    console.log('='.repeat(60) + '\n');
+    
+    return health;
+  }
+
+  /**
+   * Sleep utility
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
