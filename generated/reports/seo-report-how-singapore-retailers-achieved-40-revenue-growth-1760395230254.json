@@ -1,0 +1,93 @@
+{
+  "timestamp": "2025-10-13T22:40:30.244Z",
+  "post": {
+    "title": "How Singapore Retailers Achieved 40% Revenue Growth",
+    "keyword": "How Singapore Retailers Achieved 40% Revenue Growth Through Omnichannel",
+    "template": "Case Study Analysis",
+    "author": "Linh Nguyen"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "How Singapore Retailers Achieved 40% Revenue Growth",
+      "length": 51,
+      "optimal": true,
+      "score": 95
+    },
+    "metaDescription": {
+      "value": "How Singapore Retailers Achieved 40% Revenue Growth Through Omnichannel: Strategic perspectives from market leaders. Data-driven analysis and actionable guid...",
+      "length": 160,
+      "optimal": true,
+      "score": 90
+    },
+    "keyword": {
+      "target": "How Singapore Retailers Achieved 40% Revenue Growth Through Omnichannel",
+      "inTitle": false,
+      "inMetaDescription": true,
+      "density": "0.62",
+      "score": 75
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 6,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 90
+    },
+    "readability": {
+      "wordCount": 1120,
+      "paragraphCount": 14,
+      "avgWordsPerParagraph": 80,
+      "score": 65
+    },
+    "links": {
+      "total": 4,
+      "internalEstimate": 0,
+      "externalEstimate": 4,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 178,
+      "altTextOptimal": false,
+      "score": 90
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "Image alt text is too long - keep under 125 characters",
+      "Link may be broken: https://www.gartner.com/en/marketing",
+      "Link may be broken: https://www.bain.com/insights/topics/customer-experience"
+    ]
+  },
+  "overall": {
+    "score": 85,
+    "grade": "B",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (1120 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      },
+      {
+        "category": "Readability",
+        "priority": "Medium",
+        "issue": "Paragraphs are too long",
+        "fix": "Break paragraphs into 2-3 sentences each"
+      }
+    ]
+  }
+}

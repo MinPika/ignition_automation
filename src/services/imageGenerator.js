@@ -1,4 +1,4 @@
-// src/services/imageGenerator.js - Enhanced with retry logic
+// src/services/imageGenerator.js - Enhanced with proper image dimensions
 const { GoogleGenAI } = require("@google/genai");
 const fs = require("fs");
 const path = require("path");
@@ -13,6 +13,11 @@ class ImageGenerator {
     this.model = "gemini-2.5-flash-image-preview";
     this.maxRetries = 3;
     this.retryDelay = 5000;
+    
+    // Ghost CMS optimal dimensions
+    this.imageWidth = 1200;
+    this.imageHeight = 675;
+    this.aspectRatio = "16:9";
     
     this.imageDir = path.join(process.cwd(), "generated/images");
     if (!fs.existsSync(this.imageDir)) {
@@ -66,6 +71,7 @@ class ImageGenerator {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(`🎨 Generating image (attempt ${attempt}/${this.maxRetries})...`);
+        console.log(`   Target size: ${this.imageWidth}x${this.imageHeight}px (${this.aspectRatio} landscape)`);
         
         const filePath = await this.generateImageFromPrompt(prompt, filename);
         
@@ -81,7 +87,8 @@ class ImageGenerator {
           url: ghostUrl,
           altText: this.generateSEOAltText(keyword, templateType),
           provider: "gemini-abstract",
-          style: style.name
+          style: style.name,
+          dimensions: `${this.imageWidth}x${this.imageHeight}`
         };
         
       } catch (error) {
@@ -140,132 +147,203 @@ class ImageGenerator {
   getAllVisualStyles() {
     return [
       {
-        name: 'geometric',
-        description: '3D geometric shapes (cubes, spheres, pyramids), floating or intersecting, sharp clean lines',
-        colors: 'vibrant orange, yellow, teal accents on dark navy background'
+        name: 'geometric-modern',
+        description: 'Clean 3D geometric shapes (cubes, spheres, cylinders) with modern lighting, professional depth',
+        colors: 'vibrant blue, orange, teal accents on dark navy background',
+        mood: 'professional, modern, technology-forward'
       },
       {
-        name: 'particle-field',
-        description: 'thousands of small glowing particles forming patterns, constellation-like connections',
-        colors: 'purple, pink, blue gradients on black background'
+        name: 'data-visualization',
+        description: 'Abstract data streams, flowing information patterns, network nodes, connectivity visualization',
+        colors: 'cyan, electric blue, white on dark background',
+        mood: 'analytical, intelligent, data-driven'
       },
       {
-        name: 'fluid-dynamics',
-        description: 'liquid paint swirls, marble ink patterns, organic flowing shapes',
-        colors: 'emerald green, gold, cream on light grey background'
+        name: 'gradient-landscape',
+        description: 'Smooth gradient waves forming abstract landscape, rolling color transitions, horizon perspective',
+        colors: 'coral pink, peach, lavender gradient on soft background',
+        mood: 'optimistic, forward-looking, strategic'
       },
       {
-        name: 'wireframe',
-        description: 'technical wireframe grids, architectural line drawings, schematic diagrams',
-        colors: 'cyan, white lines on dark background'
+        name: 'architectural-wireframe',
+        description: 'Technical blueprint lines, architectural wireframe structures, clean technical diagrams',
+        colors: 'white and cyan lines on dark blue/black background',
+        mood: 'structured, strategic, framework-focused'
       },
       {
-        name: 'gradient-waves',
-        description: 'smooth gradient color waves, rolling hills of color, soft transitions',
-        colors: 'coral, peach, lavender gradient on white background'
+        name: 'particle-network',
+        description: 'Glowing particles connected by light trails, constellation-like network patterns',
+        colors: 'purple, magenta, blue on black background',
+        mood: 'connected, innovative, future-forward'
       },
       {
-        name: 'crystalline',
-        description: 'crystal structures, faceted gem-like forms, prismatic reflections',
-        colors: 'ice blue, silver, white on grey background'
+        name: 'fluid-organic',
+        description: 'Liquid paint swirls, organic flowing shapes, smooth color transitions like ink in water',
+        colors: 'emerald green, gold, cream on light grey',
+        mood: 'dynamic, transformative, flowing'
       },
       {
-        name: 'data-viz',
-        description: 'abstract charts, flowing data streams, infographic-style patterns',
-        colors: 'red, blue, yellow on white background'
+        name: 'crystalline-structure',
+        description: 'Faceted crystal forms, prismatic geometric structures, gem-like reflective surfaces',
+        colors: 'ice blue, silver, white with subtle color reflections',
+        mood: 'premium, refined, high-value'
       },
       {
-        name: 'light-rays',
-        description: 'beams of light, lens flares, radial light patterns, luminous trails',
-        colors: 'golden yellow, warm orange on dark teal background'
+        name: 'topographic-contour',
+        description: 'Topographical contour lines, elevation maps, layered terrain visualization',
+        colors: 'forest green, brown, tan on cream background',
+        mood: 'strategic, mapping, navigational'
       },
       {
-        name: 'topographic',
-        description: 'contour lines, elevation maps, topographical patterns, layered rings',
-        colors: 'forest green, brown, tan on cream background'
+        name: 'light-beam-radial',
+        description: 'Radial light beams, lens flares, luminous rays emanating from center',
+        colors: 'golden yellow, warm orange on dark teal',
+        mood: 'enlightening, clarity, breakthrough'
       },
       {
-        name: 'minimal-shapes',
-        description: 'simple bold shapes (circles, squares, triangles), minimal composition, lots of negative space',
-        colors: 'black, bright red accent on white background'
+        name: 'minimalist-bold',
+        description: 'Simple bold geometric shapes with lots of negative space, minimal composition',
+        colors: 'black shapes with one bright accent color on white',
+        mood: 'clean, decisive, impactful'
       }
     ];
   }
 
   /**
-   * Build prompt for DIVERSE abstract images
+   * Build prompt for topic-relevant abstract images with EXACT dimensions
    */
   buildAbstractImagePrompt(keyword, templateType, style) {
+    // Extract topic essence for visual connection
+    const topicEssence = this.extractTopicEssence(keyword);
+    const regionalContext = this.getRegionalVisualContext(keyword);
+    
     const baseRequirements = `
-CRITICAL REQUIREMENTS:
+CRITICAL IMAGE REQUIREMENTS:
+
+**DIMENSIONS (MUST BE EXACT):**
+- Width: EXACTLY 1200 pixels
+- Height: EXACTLY 675 pixels
+- Aspect Ratio: 16:9 (landscape/horizontal orientation)
+- This is for Ghost CMS featured images - dimensions MUST be precise
+- NEVER create portrait or square images - ONLY 16:9 landscape
+
+**CONTENT RESTRICTIONS:**
 - NO people, faces, or human figures
-- NO realistic objects or scenes  
-- NO text, words, or letters anywhere
+- NO realistic objects, buildings, or recognizable landmarks  
+- NO text, words, letters, or numbers anywhere in the image
 - Only pure abstract visual representation
-- Professional editorial style
-- Single clear subject or pattern
+- Professional editorial photography style
 - High quality photorealistic rendering
 
-Style: ${style.description}
-Color scheme: ${style.colors}
-Mood: Professional, modern, corporate editorial
-Composition: Clean, balanced, visually striking
+**VISUAL STYLE:** ${style.description}
+**COLOR PALETTE:** ${style.colors}
+**MOOD:** ${style.mood}
 
-Abstract concept representing: ${keyword}
-Visual metaphor: ${this.getVisualMetaphor(keyword)}
-Template guidance: ${this.getTemplateVisualGuidance(templateType)}
+**TOPIC CONNECTION (Abstract Representation):**
+Main Topic: ${keyword}
+Visual Essence: ${topicEssence}
+Regional Context: ${regionalContext}
+Template Type: ${this.getTemplateVisualGuidance(templateType)}
+
+**COMPOSITION RULES:**
+- Landscape orientation (wider than tall) - 16:9 ratio MANDATORY
+- Main subject occupies 60-70% of frame
+- Balanced composition with clear focal point
+- Professional depth and dimension
+- Clean, uncluttered background
+- Modern, contemporary aesthetic
+- Suitable for business/professional context
+- Optimized for web display (1200x675px)
+
+**TECHNICAL SPECIFICATIONS:**
+- Exact dimensions: 1200px wide × 675px tall
+- Aspect ratio: 16:9 landscape (horizontal)
+- Style: Abstract editorial photography
+- Lighting: Professional, even illumination
+- Quality: High resolution, sharp details
+- Format: PNG, optimized for web
+- File size: Suitable for fast web loading
+
+CRITICAL: The image MUST be landscape (horizontal) format. A 1200x675px rectangle is WIDER than it is tall.
+
+Create an abstract visual that EMOTIONALLY represents the topic essence while maintaining professional sophistication in a 16:9 landscape format.
 `;
 
     return baseRequirements;
   }
 
-  getVisualMetaphor(keyword) {
-    const metaphors = {
-      'transformation': 'metamorphosis, evolution, change in form',
-      'growth': 'expansion, ascending forms, upward movement',
-      'strategy': 'chess pieces, pathways, decision trees',
-      'data': 'networks, connections, information flow',
-      'innovation': 'breakthrough, emergence, new forms',
-      'performance': 'acceleration, momentum, dynamic motion',
-      'leadership': 'guiding light, central focal point, direction',
-      'market': 'ecosystem, landscape, terrain',
-      'value': 'gems, treasure, concentrated energy',
-      'customer': 'journey, pathways, experience flow',
-      'digital': 'circuits, bytes, binary patterns',
-      'competitive': 'contrast, differentiation, standing out',
-      'operational': 'machinery, precision, efficiency',
-      'excellence': 'perfection, ideal form, pinnacle',
-      'sustainable': 'cycles, renewal, continuous flow',
-      'retention': 'bonds, connections, holding together',
-      'pricing': 'scales, balance, value exchange',
-      'segmentation': 'divisions, categories, distinct groups',
-      'revenue': 'streams, flowing abundance, growth curves',
-      'culture': 'organic networks, living systems',
-      'analytics': 'patterns, insights, clarity emerging',
-      'journey': 'pathways, progression, milestones',
-      'positioning': 'elevation, standing out, prominence',
-      'productivity': 'efficiency, streamlined flow, optimization',
-      'roi': 'returns, cycles, value multiplication'
+  /**
+   * Extract visual essence from topic keyword
+   */
+  extractTopicEssence(keyword) {
+    const essenceMap = {
+      'transformation': 'evolution, metamorphosis, transition from old to new state',
+      'digital': 'connectivity, data flow, technological integration',
+      'growth': 'upward movement, expansion, ascending momentum',
+      'strategy': 'pathways, direction, calculated movement',
+      'customer': 'journey, experience flow, connection points',
+      'retention': 'bonds, holding together, continuity',
+      'pricing': 'value scales, balance, exchange',
+      'market': 'landscape, terrain, positioning',
+      'innovation': 'breakthrough, emergence, new formations',
+      'leadership': 'guidance, direction, forward momentum',
+      'data': 'information streams, patterns, insights',
+      'performance': 'acceleration, optimization, efficiency',
+      'revenue': 'growth curves, flowing abundance',
+      'competitive': 'differentiation, standing out, elevation',
+      'operational': 'precision, systems, synchronized flow',
+      'partnership': 'connection, collaboration, network',
+      'talent': 'potential, capability, human capital',
+      'sustainability': 'cycles, renewal, continuous flow',
+      'ai': 'intelligence, neural patterns, cognitive networks',
+      'automation': 'efficiency, streamlined processes, smart systems',
+      'singapore': 'modern hub, innovation center, strategic gateway',
+      'apac': 'regional connectivity, diverse markets, growth dynamics',
+      'sea': 'emerging opportunities, dynamic change, regional integration',
+      'smb': 'agility, growth potential, entrepreneurial energy',
+      'fintech': 'financial innovation, digital transformation, future banking',
+      'saas': 'cloud connectivity, scalable platforms, modern software',
+      'retail': 'commerce flow, shopping experience, consumer journey',
+      'omnichannel': 'seamless integration, unified experience, channel harmony'
     };
 
-    for (const [key, metaphor] of Object.entries(metaphors)) {
+    // Find matching keywords
+    for (const [key, essence] of Object.entries(essenceMap)) {
       if (keyword.toLowerCase().includes(key)) {
-        return metaphor;
+        return essence;
       }
     }
 
-    return 'abstract business concept, strategic thinking, professional insight';
+    return 'strategic business concept, professional insight, forward momentum';
+  }
+
+  /**
+   * Get regional visual context
+   */
+  getRegionalVisualContext(keyword) {
+    if (keyword.toLowerCase().includes('singapore')) {
+      return 'modern, tech-forward, precision-focused, hub mentality';
+    }
+    if (keyword.toLowerCase().includes('apac') || keyword.toLowerCase().includes('asia')) {
+      return 'dynamic, diverse, interconnected, growth-oriented';
+    }
+    if (keyword.toLowerCase().includes('sea') || keyword.toLowerCase().includes('southeast')) {
+      return 'emerging, energetic, opportunity-rich, transformative';
+    }
+    return 'global yet locally relevant, professional, contemporary';
   }
 
   getTemplateVisualGuidance(templateType) {
     const guidance = {
-      'Strategic Framework': 'structured geometric patterns, layered frameworks, architectural abstractions',
-      'Case Study Analysis': 'analytical abstract forms, data flow patterns, insights visualization',
-      'Vision & Outlook': 'forward-moving abstract shapes, horizon-like compositions, future-oriented patterns',
-      'How-To / Playbook': 'step-like abstract progressions, methodical pattern flows, process abstractions'
+      'Strategic Framework': 'structured layers, architectural forms, framework visualization',
+      'Case Study Analysis': 'transformation journey, before-after contrast, process flow',
+      'Vision & Outlook': 'horizon perspective, forward movement, future-oriented composition',
+      'Point of View (POV)': 'bold statement, contrarian angle, distinctive perspective',
+      'How-To / Playbook': 'step progression, methodical flow, clear pathway',
+      'Expert Q&A': 'dialogue visualization, knowledge exchange, insight sharing'
     };
 
-    return guidance[templateType] || 'professional abstract business visualization';
+    return guidance[templateType] || 'professional business visualization';
   }
 
   /**
@@ -276,7 +354,7 @@ Template guidance: ${this.getTemplateVisualGuidance(templateType)}
       .toLowerCase()
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "")
-      .substring(0, 40);
+      .substring(0, 50);
 
     const templateSlug = templateType
       .toLowerCase()
@@ -288,10 +366,20 @@ Template guidance: ${this.getTemplateVisualGuidance(templateType)}
   }
 
   /**
-   * Generate keyword-rich alt text (SEO optimised)
+   * Generate keyword-rich alt text (SEO optimised, under 125 chars)
    */
   generateSEOAltText(keyword, templateType) {
-    return `Abstract visualization representing ${keyword} for ${templateType} - B2B marketing insights by Ignition Studio`;
+    // Keep under 125 characters for SEO best practices
+    const baseAlt = `${keyword} - ${templateType} insights`;
+    
+    if (baseAlt.length > 120) {
+      // Truncate keyword if too long
+      const maxKeywordLength = 100 - templateType.length;
+      const truncatedKeyword = keyword.substring(0, maxKeywordLength);
+      return `${truncatedKeyword} - ${templateType}`;
+    }
+    
+    return baseAlt;
   }
 
   /**
@@ -313,7 +401,11 @@ Template guidance: ${this.getTemplateVisualGuidance(templateType)}
         const buffer = Buffer.from(part.inlineData.data, "base64");
         const outPath = path.join(this.imageDir, filename);
         fs.writeFileSync(outPath, buffer);
+        
+        // Log image details
         console.log("✅ Abstract image saved:", filename);
+        console.log(`   Expected dimensions: ${this.imageWidth}x${this.imageHeight}px`);
+        
         return outPath;
       }
     }
@@ -404,8 +496,10 @@ Template guidance: ${this.getTemplateVisualGuidance(templateType)}
   async testConnection() {
     try {
       console.log("🧪 Testing abstract image generation...");
+      console.log(`   Target: ${this.imageWidth}x${this.imageHeight}px (${this.aspectRatio} landscape)`);
+      
       const result = await this.generateFeaturedImage(
-        "Data-Driven Decision Making in Marketing",
+        "Singapore SMB Digital Transformation Strategies",
         "Strategic Framework",
         "Dr. Anya Sharma"
       );
@@ -413,6 +507,7 @@ Template guidance: ${this.getTemplateVisualGuidance(templateType)}
       if (result.url) {
         console.log("✅ Test completed successfully!");
         console.log("   Image URL:", result.url);
+        console.log("   Dimensions:", result.dimensions);
       } else {
         console.log("⚠️  Test completed with fallback (no image)");
       }

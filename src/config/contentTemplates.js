@@ -5,7 +5,7 @@ module.exports = {
     'Strategic Framework or Model',
     'Supporting Case Study',
     'Implementation Steps',
-    'Conclusion & Outlook'
+    'Conclusion'  
   ],
   
   'Case Study Analysis': [
@@ -14,7 +14,7 @@ module.exports = {
     'Solution Overview',
     'Results and Learnings',
     'Transferable Lessons',
-    'CTA to Ignition Studio'
+    'Strategic Implications' 
   ],
   
   'Vision & Outlook': [
@@ -23,7 +23,16 @@ module.exports = {
     'Implications for B2B Marketers',
     'Signals from the Market',
     'What to Watch Next',
-    'Final Thoughts & Ignition Studio CTA'
+    'Strategic Imperatives'
+  ],
+  
+  'Point of View (POV)': [
+    'Provocative Opening Statement',
+    'Why This Matters Now',
+    'The Contrarian Insight',
+    'Backing Evidence & Data',
+    'Recommended Action',
+    'Strategic Implications'  
   ],
   
   'How-To / Playbook': [
@@ -32,6 +41,14 @@ module.exports = {
     'Step-by-Step Methodology',
     'Real-World Example',
     'Tools or Metrics to Apply',
-    'Conclusion & CTA'
+    'Conclusion' 
+  ],
+  
+  'Expert Q&A': [
+    'Context Setting',
+    'Question 1 + Expert Answer',
+    'Question 2 + Expert Answer',
+    'Question 3 + Expert Answer',
+    'Key Takeaways & Summary'
   ]
 };

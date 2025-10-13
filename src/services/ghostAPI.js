@@ -431,34 +431,49 @@ class GhostService {
    * Parse formatted text (bold, italic)
    */
   parseFormattedText(html) {
-    const nodes = [];
-    const text = this.extractTextContent(html);
-    
-    if (!text || !text.trim()) {
-      return [];
-    }
-    
-    // Check for bold
-    const hasBold = html.includes('<strong>') || html.includes('<b>');
-    const hasItalic = html.includes('<em>') || html.includes('<i>');
-    
-    if (hasBold || hasItalic) {
-      // For now, just return plain text
-      // TODO: Implement proper inline formatting parsing
-      nodes.push({
-        type: 'text',
-        text: text.trim(),
-        format: hasBold ? 1 : 0 // 1 = bold in Lexical
-      });
-    } else {
-      nodes.push({
-        type: 'text',
-        text: text.trim()
-      });
-    }
-    
-    return nodes;
+  const nodes = [];
+  const text = this.extractTextContent(html);
+  
+  if (!text || !text.trim()) {
+    return [];
   }
+  
+  // Check for bold - but only if <strong> tags exist
+  const hasBold = /<strong>/i.test(html);
+  
+  if (hasBold) {
+    // Split by <strong> tags and process
+    const parts = html.split(/<\/?strong>/gi);
+    let isBold = false;
+    
+    for (let i = 0; i < parts.length; i++) {
+      const partText = this.extractTextContent(parts[i]);
+      if (partText && partText.trim()) {
+        if (isBold) {
+          nodes.push({
+            type: 'text',
+            text: partText.trim(),
+            format: 1 // 1 = bold in Lexical
+          });
+        } else {
+          nodes.push({
+            type: 'text',
+            text: partText.trim()
+          });
+        }
+      }
+      isBold = !isBold; // Toggle for next part
+    }
+  } else {
+    // No bold formatting, just return plain text
+    nodes.push({
+      type: 'text',
+      text: text.trim()
+    });
+  }
+  
+  return nodes.length > 0 ? nodes : [{ type: 'text', text: text.trim() }];
+}
 
   /**
    * Extract plain text from HTML

@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-10-13T23:03:56.213Z",
+  "post": {
+    "title": "APAC PropTech: How Technology Is Reshaping Real Estate",
+    "keyword": "APAC PropTech: How Technology Is Reshaping Real Estate",
+    "template": "Strategic Framework",
+    "author": "Dr. Anya Sharma"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "APAC PropTech: How Technology Is Reshaping Real Estate",
+      "length": 54,
+      "optimal": true,
+      "score": 95
+    },
+    "metaDescription": {
+      "value": "Discover how leading organisations approach APAC PropTech: How Technology Is Reshaping Real Estate. Expert insights and practical frameworks. Evidence-based app",
+      "length": 160,
+      "optimal": true,
+      "score": 100
+    },
+    "keyword": {
+      "target": "APAC PropTech: How Technology Is Reshaping Real Estate",
+      "inTitle": true,
+      "inMetaDescription": true,
+      "density": "0.81",
+      "score": 100
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 5,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 987,
+      "paragraphCount": 10,
+      "avgWordsPerParagraph": 99,
+      "score": 65
+    },
+    "links": {
+      "total": 3,
+      "internalEstimate": 0,
+      "externalEstimate": 3,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 85,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "9 sentences exceed 25 words - aim for 15-20 words per sentence",
+      "Link may be broken: https://www.gartner.com/en/marketing"
+    ]
+  },
+  "overall": {
+    "score": 94,
+    "grade": "A",
+    "recommendations": [
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (987 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      },
+      {
+        "category": "Readability",
+        "priority": "Medium",
+        "issue": "Paragraphs are too long",
+        "fix": "Break paragraphs into 2-3 sentences each"
+      }
+    ]
+  }
+}

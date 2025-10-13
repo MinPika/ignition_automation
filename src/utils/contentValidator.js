@@ -1,16 +1,18 @@
-// src/utils/contentValidator.js - Content validation before publishing
+// src/utils/contentValidator.js - Enhanced content validation
 const axios = require('axios');
 
 class ContentValidator {
   constructor() {
-    this.minWordCount = 1200;
-    this.maxWordCount = 2000;
+    this.minWordCount = 800;
+    this.maxWordCount = 1600;
     this.minParagraphs = 8;
     this.requiredSections = {
       'Strategic Framework': ['Executive Summary', 'Framework', 'Implementation', 'Conclusion'],
       'Case Study Analysis': ['Executive Summary', 'Background', 'Solution', 'Results', 'Lessons'],
       'Vision & Outlook': ['Executive Summary', 'Trends', 'Implications', 'Signals', 'Thoughts'],
-      'How-To / Playbook': ['Executive Summary', 'Problem', 'Methodology', 'Example', 'Conclusion']
+      'Point of View (POV)': ['Opening Statement', 'Why This Matters', 'Insight', 'Evidence', 'Action'],
+      'How-To / Playbook': ['Executive Summary', 'Problem', 'Methodology', 'Example', 'Conclusion'],
+      'Expert Q&A': ['Context', 'Question', 'Answer', 'Takeaways']
     };
   }
 
@@ -37,23 +39,44 @@ class ContentValidator {
     }
     warnings.push(...contentValidation.warnings);
 
-    // 3. SEO metadata validation
+    // 3. Voice and tone validation
+    const voiceValidation = this.validateVoice(postData.content);
+    if (!voiceValidation.valid) {
+      errors.push(...voiceValidation.errors);
+    }
+    warnings.push(...voiceValidation.warnings);
+
+    // 4. Regional context validation
+    const contextValidation = this.validateRegionalContext(postData.content);
+    if (!contextValidation.valid) {
+      errors.push(...contextValidation.errors);
+    }
+    warnings.push(...contextValidation.warnings);
+
+    // 5. SEO metadata validation
     const seoValidation = this.validateSEO(postData);
     if (!seoValidation.valid) {
       errors.push(...seoValidation.errors);
     }
     warnings.push(...seoValidation.warnings);
 
-    // 4. Image validation
+    // 6. Image validation
     const imageValidation = await this.validateImage(imageData);
     if (!imageValidation.valid) {
       errors.push(...imageValidation.errors);
     }
     warnings.push(...imageValidation.warnings);
 
-    // 5. Link validation
+    // 7. Link validation
     const linkValidation = await this.validateLinks(postData.content);
     warnings.push(...linkValidation.warnings);
+
+    // 8. Conclusion format validation
+    const conclusionValidation = this.validateConclusion(postData.content);
+    if (!conclusionValidation.valid) {
+      errors.push(...conclusionValidation.errors);
+    }
+    warnings.push(...conclusionValidation.warnings);
 
     // Print results
     if (errors.length > 0) {
@@ -78,7 +101,9 @@ class ContentValidator {
         wordCount: this.countWords(postData.content),
         paragraphCount: this.countParagraphs(postData.content),
         headingCount: this.countHeadings(postData.content),
-        linkCount: this.countLinks(postData.content)
+        linkCount: this.countLinks(postData.content),
+        firstPersonUsage: this.countFirstPersonUsage(postData.content),
+        regionalMentions: this.countRegionalMentions(postData.content)
       }
     };
   }
@@ -111,9 +136,137 @@ class ContentValidator {
       errors.push('Title appears incomplete (ends with ...)');
     }
 
-    // Check for common title issues
-    if (/^(the|a|an)\s+/i.test(trimmedTitle)) {
-      warnings.push('Title starts with article (the/a/an) - consider removing for SEO');
+    // Check for generic/vague titles
+    const genericTerms = ['strategies', 'guide', 'tips', 'ways', 'methods'];
+    const isGeneric = genericTerms.some(term => 
+      trimmedTitle.toLowerCase().includes(term) && 
+      !(/\d+/.test(trimmedTitle) || /singapore|apac|sea/i.test(trimmedTitle))
+    );
+    
+    if (isGeneric) {
+      warnings.push('Title may be too generic - consider adding specificity (numbers, location, outcome)');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validate voice and tone
+   */
+  validateVoice(content) {
+    const errors = [];
+    const warnings = [];
+
+    // Check for "this article" language (prohibited)
+    const prohibitedPhrases = [
+      /this article/gi,
+      /this post/gi,
+      /this piece/gi,
+      /this blog/gi
+    ];
+
+    prohibitedPhrases.forEach(phrase => {
+      if (phrase.test(content)) {
+        errors.push(`Found prohibited phrase "${phrase.source}" - must use first-person voice instead`);
+      }
+    });
+
+    // Check for first-person usage
+    const firstPersonCount = this.countFirstPersonUsage(content);
+    if (firstPersonCount < 3) {
+      errors.push(`Insufficient first-person voice (found ${firstPersonCount} instances, need at least 3)`);
+    }
+
+    // Check for passive voice indicators (warnings only)
+    const passiveIndicators = content.match(/\b(is|are|was|were|been|being)\s+\w+ed\b/gi);
+    if (passiveIndicators && passiveIndicators.length > 10) {
+      warnings.push(`High passive voice usage detected (${passiveIndicators.length} instances) - prefer active voice`);
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validate regional context
+   */
+  validateRegionalContext(content) {
+    const errors = [];
+    const warnings = [];
+
+    // Check for regional mentions
+    const regionalMentions = this.countRegionalMentions(content);
+    
+    if (regionalMentions === 0) {
+      errors.push('Missing regional context - must mention Singapore/APAC/Southeast Asia/SEA');
+    } else if (regionalMentions === 1) {
+      warnings.push('Only one regional mention - recommend 2-3 throughout article');
+    }
+
+    // Check for specific examples with dates
+    const hasYears = /20(23|24|25)/.test(content);
+    if (!hasYears) {
+      warnings.push('No recent years mentioned (2023-2025) - examples should be dated');
+    }
+
+    // Check for specific company/industry mentions
+    const hasSpecificExample = /\b(startup|company|firm|brand|business)\b/i.test(content);
+    if (!hasSpecificExample) {
+      warnings.push('Consider adding specific company or industry examples');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validate conclusion format
+   */
+  validateConclusion(content) {
+    const errors = [];
+    const warnings = [];
+
+    // Extract last paragraph
+    const paragraphs = content.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
+    if (paragraphs.length === 0) {
+      errors.push('No paragraphs found in content');
+      return { valid: false, errors, warnings };
+    }
+
+    const lastParagraph = paragraphs[paragraphs.length - 1];
+    
+    // Check if there's a heading right before the last paragraph
+    const lastHeadingIndex = content.lastIndexOf('<h2');
+    const lastParagraphIndex = content.lastIndexOf(lastParagraph);
+    
+    // If heading comes after the second-to-last paragraph, conclusion has a heading (error)
+    if (lastHeadingIndex > 0 && lastHeadingIndex > lastParagraphIndex - 500) {
+      errors.push('Conclusion should NOT have a heading - end with 2-3 sentences only');
+    }
+
+    // Check conclusion length
+    const conclusionText = this.extractTextContent(lastParagraph);
+    const conclusionWords = conclusionText.split(/\s+/).length;
+    
+    if (conclusionWords > 100) {
+      warnings.push(`Conclusion is long (${conclusionWords} words) - recommend 30-60 words`);
+    } else if (conclusionWords < 20) {
+      warnings.push(`Conclusion is short (${conclusionWords} words) - recommend 30-60 words`);
+    }
+
+    // Check for hyperlinks in conclusion
+    if (/<a\s+href/i.test(lastParagraph)) {
+      errors.push('Conclusion should NOT contain hyperlinks');
     }
 
     return {
@@ -149,6 +302,12 @@ class ContentValidator {
       warnings.push(`Few paragraphs (${paragraphCount}, recommend at least ${this.minParagraphs})`);
     }
 
+    // Sentence length check
+    const longSentences = this.findLongSentences(content);
+    if (longSentences.length > 5) {
+      warnings.push(`${longSentences.length} sentences exceed 25 words - aim for 15-20 words per sentence`);
+    }
+
     // Heading structure
     const headings = this.extractHeadings(content);
     
@@ -162,28 +321,24 @@ class ContentValidator {
 
     // Check for H2s
     const h2Count = headings.filter(h => h.level === 2).length;
-    if (h2Count < 3) {
+    if (h2Count < 4) {
       warnings.push(`Few H2 headings (${h2Count}, recommend at least 4-6 for readability)`);
     }
 
-    // Check for required sections based on template
-    if (this.requiredSections[templateType]) {
-      const requiredKeywords = this.requiredSections[templateType];
-      const missingKeywords = [];
-      
-      requiredKeywords.forEach(keyword => {
-        const found = headings.some(h => 
-          h.text.toLowerCase().includes(keyword.toLowerCase())
-        );
-        if (!found) {
-          missingKeywords.push(keyword);
-        }
-      });
-      
-      if (missingKeywords.length > 0) {
-        warnings.push(`Template sections may be missing: ${missingKeywords.join(', ')}`);
+    // Check for generic headings
+    const genericHeadingPatterns = [
+      /^introduction$/i,
+      /^conclusion$/i,
+      /^overview$/i,
+      /^background$/i,
+      /^summary$/i
+    ];
+    
+    headings.forEach(h => {
+      if (genericHeadingPatterns.some(pattern => pattern.test(h.text))) {
+        warnings.push(`Generic heading found: "${h.text}" - make headings more specific and valuable`);
       }
-    }
+    });
 
     // Check for lists
     const hasBulletLists = content.includes('<ul>');
@@ -193,14 +348,30 @@ class ContentValidator {
       warnings.push('No lists found - consider adding for readability');
     }
 
-    // Check for FAQ section
+    // Check for FAQ section (conditional)
     const hasFAQ = headings.some(h => 
       h.text.toLowerCase().includes('frequently asked questions') ||
       h.text.toLowerCase().includes('faq')
     );
     
-    if (!hasFAQ) {
-      warnings.push('No FAQ section found - recommended for SEO');
+    if (templateType === 'How-To / Playbook' && !hasFAQ) {
+      errors.push('FAQ section required for How-To/Playbook template');
+    }
+
+    // Check for bold formatting
+    const boldCount = (content.match(/<strong>/gi) || []).length;
+    if (boldCount === 0) {
+      warnings.push('No bold text found - use <strong> to emphasize key points (3-5 times)');
+    }
+
+    // Check for incomplete sentences
+    const incompletePattern = /[a-z]\s*\.\s*["']?\s*<\/p>/i;
+    if (incompletePattern.test(content)) {
+      // More sophisticated check needed
+      const potentiallyIncomplete = content.match(/\b[a-z]{1,2}\s*\.\s*["']?\s*<\/p>/gi);
+      if (potentiallyIncomplete) {
+        warnings.push('Possible incomplete sentences detected - verify all sentences are complete');
+      }
     }
 
     return {
@@ -208,6 +379,68 @@ class ContentValidator {
       errors,
       warnings
     };
+  }
+
+  /**
+   * Find sentences longer than 25 words
+   */
+  findLongSentences(content) {
+    const text = this.extractTextContent(content);
+    const sentences = text.split(/[.!?]+/);
+    
+    return sentences.filter(sentence => {
+      const words = sentence.trim().split(/\s+/);
+      return words.length > 25;
+    });
+  }
+
+  /**
+   * Count first-person usage
+   */
+  countFirstPersonUsage(content) {
+    const text = this.extractTextContent(content);
+    const firstPersonPatterns = [
+      /\bI\s+(?:believe|think|see|find|argue|contend|suggest|recommend|ve|have)/gi,
+      /\bwe\s+(?:believe|see|find|argue|recommend|ve|have)/gi,
+      /\bin my (?:experience|view|work|opinion)/gi,
+      /\bI've (?:seen|worked|found|learned|witnessed)/gi,
+      /\bwe've (?:seen|worked|found|learned)/gi
+    ];
+    
+    let count = 0;
+    firstPersonPatterns.forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        count += matches.length;
+      }
+    });
+    
+    return count;
+  }
+
+  /**
+   * Count regional mentions
+   */
+  countRegionalMentions(content) {
+    const text = this.extractTextContent(content);
+    const regionalPatterns = [
+      /\bsingapore\b/gi,
+      /\bapac\b/gi,
+      /\basia[- ]pacific\b/gi,
+      /\bsoutheast asia\b/gi,
+      /\bsea\b/gi,
+      /\basean\b/gi
+    ];
+    
+    let count = 0;
+    regionalPatterns.forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        count += matches.length;
+      }
+    });
+    
+    return count;
   }
 
   /**
@@ -252,8 +485,8 @@ class ContentValidator {
       const density = (keywordCount / wordCount) * 100;
       
       if (density < 0.5) {
-        warnings.push(`Keyword density low (${density.toFixed(2)}%, recommend 1-2%)`);
-      } else if (density > 3) {
+        warnings.push(`Keyword density low (${density.toFixed(2)}%, recommend 1-1.5%)`);
+      } else if (density > 2) {
         warnings.push(`Keyword density high (${density.toFixed(2)}%, may be over-optimized)`);
       }
     }
@@ -300,6 +533,8 @@ class ContentValidator {
       warnings.push('Image alt text is missing - bad for SEO and accessibility');
     } else if (imageData.altText.length < 10) {
       warnings.push('Image alt text is very short - should be descriptive');
+    } else if (imageData.altText.length > 125) {
+      warnings.push('Image alt text is too long - keep under 125 characters');
     }
 
     return {
@@ -317,12 +552,12 @@ class ContentValidator {
     const links = this.extractLinks(content);
 
     if (links.length === 0) {
-      warnings.push('No external links found - consider adding 2-3 authoritative sources');
+      warnings.push('No external links found - consider adding 3-4 authoritative sources');
       return { warnings };
     }
 
-    if (links.length < 2) {
-      warnings.push(`Only ${links.length} external link - recommend 2-3 for credibility`);
+    if (links.length < 3) {
+      warnings.push(`Only ${links.length} external link(s) - recommend 3-4 for credibility`);
     }
 
     // Check link quality (basic check - just verify they're accessible)
@@ -343,7 +578,7 @@ class ContentValidator {
   // Helper methods
 
   countWords(html) {
-    const text = html.replace(/<[^>]*>/g, ' ');
+    const text = this.extractTextContent(html);
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
     return words.length;
   }
@@ -392,6 +627,19 @@ class ContentValidator {
     }
 
     return links;
+  }
+
+  extractTextContent(html) {
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
   }
 }
 
