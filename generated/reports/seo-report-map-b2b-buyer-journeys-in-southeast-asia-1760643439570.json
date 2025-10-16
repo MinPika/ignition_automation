@@ -1,0 +1,93 @@
+{
+  "timestamp": "2025-10-16T19:37:19.549Z",
+  "post": {
+    "title": "Map B2B Buyer Journeys in Southeast Asia",
+    "keyword": "Mapping B2B Buyer Journeys in Southeast Asias Diverse Markets",
+    "template": "How-To / Playbook",
+    "author": "Dr. Anya Sharma"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Map B2B Buyer Journeys in Southeast Asia",
+      "length": 40,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Navigate Southeast Asia's diverse B2B markets! Learn to map effective buyer journeys tailored to each unique region. Drive growth with our practical data-dri...",
+      "length": 160,
+      "optimal": true,
+      "score": 80
+    },
+    "keyword": {
+      "target": "Mapping B2B Buyer Journeys in Southeast Asias Diverse Markets",
+      "inTitle": false,
+      "inMetaDescription": false,
+      "density": "0.09",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 7,
+        "h3": 3,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 1051,
+      "paragraphCount": 19,
+      "avgWordsPerParagraph": 55,
+      "score": 75
+    },
+    "links": {
+      "total": 2,
+      "internalEstimate": 0,
+      "externalEstimate": 2,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 102,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "6 sentences exceed 25 words - aim for 15-20 words per sentence",
+      "Only 2 external link(s) - recommend 3-4 for credibility",
+      "Only 2 external link(s) - recommend 3-4 for credibility"
+    ]
+  },
+  "overall": {
+    "score": 79,
+    "grade": "C",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0.09%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      },
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (1051 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      }
+    ]
+  }
+}

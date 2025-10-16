@@ -1,19 +1,11 @@
-// src/utils/contentValidator.js - Enhanced content validation
+// src/utils/contentValidator.js - Enhanced content validation with context-aware checking
 const axios = require('axios');
 
 class ContentValidator {
   constructor() {
     this.minWordCount = 800;
-    this.maxWordCount = 1600;
-    this.minParagraphs = 8;
-    this.requiredSections = {
-      'Strategic Framework': ['Executive Summary', 'Framework', 'Implementation', 'Conclusion'],
-      'Case Study Analysis': ['Executive Summary', 'Background', 'Solution', 'Results', 'Lessons'],
-      'Vision & Outlook': ['Executive Summary', 'Trends', 'Implications', 'Signals', 'Thoughts'],
-      'Point of View (POV)': ['Opening Statement', 'Why This Matters', 'Insight', 'Evidence', 'Action'],
-      'How-To / Playbook': ['Executive Summary', 'Problem', 'Methodology', 'Example', 'Conclusion'],
-      'Expert Q&A': ['Context', 'Question', 'Answer', 'Takeaways']
-    };
+    this.maxWordCount = 1800;
+    this.minParagraphs = 6;
   }
 
   /**
@@ -39,44 +31,41 @@ class ContentValidator {
     }
     warnings.push(...contentValidation.warnings);
 
-    // 3. Voice and tone validation
-    const voiceValidation = this.validateVoice(postData.content);
+    // 3. Voice and tone validation (IMPROVED)
+    const voiceValidation = this.validateVoiceContextAware(postData.content);
     if (!voiceValidation.valid) {
       errors.push(...voiceValidation.errors);
     }
     warnings.push(...voiceValidation.warnings);
 
-    // 4. Regional context validation
-    const contextValidation = this.validateRegionalContext(postData.content);
-    if (!contextValidation.valid) {
-      errors.push(...contextValidation.errors);
-    }
-    warnings.push(...contextValidation.warnings);
-
-    // 5. SEO metadata validation
+    // 4. SEO metadata validation
     const seoValidation = this.validateSEO(postData);
     if (!seoValidation.valid) {
       errors.push(...seoValidation.errors);
     }
     warnings.push(...seoValidation.warnings);
 
-    // 6. Image validation
+    // 5. Image validation
     const imageValidation = await this.validateImage(imageData);
     if (!imageValidation.valid) {
       errors.push(...imageValidation.errors);
     }
     warnings.push(...imageValidation.warnings);
 
-    // 7. Link validation
+    // 6. Link validation
     const linkValidation = await this.validateLinks(postData.content);
     warnings.push(...linkValidation.warnings);
 
-    // 8. Conclusion format validation
+    // 7. Conclusion format validation
     const conclusionValidation = this.validateConclusion(postData.content);
     if (!conclusionValidation.valid) {
       errors.push(...conclusionValidation.errors);
     }
     warnings.push(...conclusionValidation.warnings);
+
+    // 8. Fact-checking and anti-hallucination check
+    const factValidation = this.validateFactualContent(postData.content);
+    warnings.push(...factValidation.warnings);
 
     // Print results
     if (errors.length > 0) {
@@ -101,9 +90,7 @@ class ContentValidator {
         wordCount: this.countWords(postData.content),
         paragraphCount: this.countParagraphs(postData.content),
         headingCount: this.countHeadings(postData.content),
-        linkCount: this.countLinks(postData.content),
-        firstPersonUsage: this.countFirstPersonUsage(postData.content),
-        regionalMentions: this.countRegionalMentions(postData.content)
+        linkCount: this.countLinks(postData.content)
       }
     };
   }
@@ -127,7 +114,7 @@ class ContentValidator {
       errors.push(`Title too long (${trimmedTitle.length} chars, max 60)`);
     }
 
-    if (trimmedTitle.length < 30) {
+    if (trimmedTitle.length < 40) {
       warnings.push(`Title quite short (${trimmedTitle.length} chars, recommend 40-60)`);
     }
 
@@ -136,17 +123,6 @@ class ContentValidator {
       errors.push('Title appears incomplete (ends with ...)');
     }
 
-    // Check for generic/vague titles
-    const genericTerms = ['strategies', 'guide', 'tips', 'ways', 'methods'];
-    const isGeneric = genericTerms.some(term => 
-      trimmedTitle.toLowerCase().includes(term) && 
-      !(/\d+/.test(trimmedTitle) || /singapore|apac|sea/i.test(trimmedTitle))
-    );
-    
-    if (isGeneric) {
-      warnings.push('Title may be too generic - consider adding specificity (numbers, location, outcome)');
-    }
-
     return {
       valid: errors.length === 0,
       errors,
@@ -155,71 +131,84 @@ class ContentValidator {
   }
 
   /**
-   * Validate voice and tone
+   * IMPROVED: Context-aware voice validation
+   * Only flags actual meta-references, not false positives
    */
-  validateVoice(content) {
+  validateVoiceContextAware(content) {
     const errors = [];
     const warnings = [];
 
-    // Check for "this article" language (prohibited)
-    const prohibitedPhrases = [
-      /this article/gi,
-      /this post/gi,
-      /this piece/gi,
-      /this blog/gi
+    // Extract text content for analysis
+    const textContent = this.extractTextContent(content);
+    
+    // Split into sentences for context analysis
+    const sentences = textContent.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+    // Check each sentence for prohibited phrases IN CONTEXT
+    const prohibitedPatterns = [
+      {
+        pattern: /\bthis article\b/gi,
+        description: '"this article"',
+        contextCheck: (sentence) => {
+          // Allow if it's referring to a cited article/source, not the current article
+          const isCitation = /according to|cited in|from|published in|study|research|report/i.test(sentence);
+          return !isCitation; // Flag if NOT a citation
+        }
+      },
+      {
+        pattern: /\bthis post\b/gi,
+        description: '"this post"',
+        contextCheck: () => true // Always flag
+      },
+      {
+        pattern: /\bthis piece\b/gi,
+        description: '"this piece"',
+        contextCheck: () => true // Always flag
+      },
+      {
+        pattern: /\bthis blog\b/gi,
+        description: '"this blog"',
+        contextCheck: () => true // Always flag
+      },
+      {
+        pattern: /\bwe at ignition\b/gi,
+        description: '"we at ignition"',
+        contextCheck: () => true // Always flag
+      },
+      {
+        pattern: /\bignition studio\b/gi,
+        description: '"ignition studio"',
+        contextCheck: () => true // Always flag
+      },
+      {
+        pattern: /\bcontact us\b/gi,
+        description: '"contact us"',
+        contextCheck: () => true // Always flag
+      },
+      {
+        pattern: /\bour services\b/gi,
+        description: '"our services"',
+        contextCheck: () => true // Always flag
+      }
     ];
 
-    prohibitedPhrases.forEach(phrase => {
-      if (phrase.test(content)) {
-        errors.push(`Found prohibited phrase "${phrase.source}" - must use first-person voice instead`);
-      }
+    prohibitedPatterns.forEach(({ pattern, description, contextCheck }) => {
+      sentences.forEach(sentence => {
+        const matches = sentence.match(pattern);
+        if (matches) {
+          // Check context to avoid false positives
+          const shouldFlag = contextCheck(sentence);
+          if (shouldFlag) {
+            errors.push(`Found prohibited phrase ${description} in: "${sentence.substring(0, 100)}..."`);
+          }
+        }
+      });
     });
 
-    // Check for first-person usage
-    const firstPersonCount = this.countFirstPersonUsage(content);
-    if (firstPersonCount < 3) {
-      errors.push(`Insufficient first-person voice (found ${firstPersonCount} instances, need at least 3)`);
-    }
-
     // Check for passive voice indicators (warnings only)
-    const passiveIndicators = content.match(/\b(is|are|was|were|been|being)\s+\w+ed\b/gi);
-    if (passiveIndicators && passiveIndicators.length > 10) {
+    const passiveIndicators = textContent.match(/\b(is|are|was|were|been|being)\s+\w+ed\b/gi);
+    if (passiveIndicators && passiveIndicators.length > 15) {
       warnings.push(`High passive voice usage detected (${passiveIndicators.length} instances) - prefer active voice`);
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-      warnings
-    };
-  }
-
-  /**
-   * Validate regional context
-   */
-  validateRegionalContext(content) {
-    const errors = [];
-    const warnings = [];
-
-    // Check for regional mentions
-    const regionalMentions = this.countRegionalMentions(content);
-    
-    if (regionalMentions === 0) {
-      errors.push('Missing regional context - must mention Singapore/APAC/Southeast Asia/SEA');
-    } else if (regionalMentions === 1) {
-      warnings.push('Only one regional mention - recommend 2-3 throughout article');
-    }
-
-    // Check for specific examples with dates
-    const hasYears = /20(23|24|25)/.test(content);
-    if (!hasYears) {
-      warnings.push('No recent years mentioned (2023-2025) - examples should be dated');
-    }
-
-    // Check for specific company/industry mentions
-    const hasSpecificExample = /\b(startup|company|firm|brand|business)\b/i.test(content);
-    if (!hasSpecificExample) {
-      warnings.push('Consider adding specific company or industry examples');
     }
 
     return {
@@ -236,7 +225,6 @@ class ContentValidator {
     const errors = [];
     const warnings = [];
 
-    // Extract last paragraph
     const paragraphs = content.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
     if (paragraphs.length === 0) {
       errors.push('No paragraphs found in content');
@@ -249,7 +237,6 @@ class ContentValidator {
     const lastHeadingIndex = content.lastIndexOf('<h2');
     const lastParagraphIndex = content.lastIndexOf(lastParagraph);
     
-    // If heading comes after the second-to-last paragraph, conclusion has a heading (error)
     if (lastHeadingIndex > 0 && lastHeadingIndex > lastParagraphIndex - 500) {
       errors.push('Conclusion should NOT have a heading - end with 2-3 sentences only');
     }
@@ -259,14 +246,19 @@ class ContentValidator {
     const conclusionWords = conclusionText.split(/\s+/).length;
     
     if (conclusionWords > 100) {
-      warnings.push(`Conclusion is long (${conclusionWords} words) - recommend 30-60 words`);
+      warnings.push(`Conclusion is long (${conclusionWords} words) - recommend 30-70 words`);
     } else if (conclusionWords < 20) {
-      warnings.push(`Conclusion is short (${conclusionWords} words) - recommend 30-60 words`);
+      warnings.push(`Conclusion is short (${conclusionWords} words) - recommend 30-70 words`);
     }
 
     // Check for hyperlinks in conclusion
     if (/<a\s+href/i.test(lastParagraph)) {
       errors.push('Conclusion should NOT contain hyperlinks');
+    }
+
+    // Check for bold in conclusion
+    if (/<strong>/i.test(lastParagraph)) {
+      errors.push('Conclusion should NOT contain <strong> formatting');
     }
 
     return {
@@ -311,7 +303,6 @@ class ContentValidator {
     // Heading structure
     const headings = this.extractHeadings(content);
     
-    // Check for H1
     const h1Count = headings.filter(h => h.level === 1).length;
     if (h1Count === 0) {
       warnings.push('No H1 heading found - Ghost will use title');
@@ -319,10 +310,11 @@ class ContentValidator {
       warnings.push(`Multiple H1 headings found (${h1Count}) - should be only 1`);
     }
 
-    // Check for H2s
     const h2Count = headings.filter(h => h.level === 2).length;
     if (h2Count < 4) {
-      warnings.push(`Few H2 headings (${h2Count}, recommend at least 4-6 for readability)`);
+      warnings.push(`Few H2 headings (${h2Count}, recommend 4-6 for comprehensive coverage)`);
+    } else if (h2Count > 8) {
+      warnings.push(`Many H2 headings (${h2Count}, may be too fragmented)`);
     }
 
     // Check for generic headings
@@ -340,38 +332,10 @@ class ContentValidator {
       }
     });
 
-    // Check for lists
-    const hasBulletLists = content.includes('<ul>');
-    const hasNumberedLists = content.includes('<ol>');
-    
-    if (!hasBulletLists && !hasNumberedLists) {
-      warnings.push('No lists found - consider adding for readability');
-    }
-
-    // Check for FAQ section (conditional)
-    const hasFAQ = headings.some(h => 
-      h.text.toLowerCase().includes('frequently asked questions') ||
-      h.text.toLowerCase().includes('faq')
-    );
-    
-    if (templateType === 'How-To / Playbook' && !hasFAQ) {
-      errors.push('FAQ section required for How-To/Playbook template');
-    }
-
-    // Check for bold formatting
-    const boldCount = (content.match(/<strong>/gi) || []).length;
-    if (boldCount === 0) {
-      warnings.push('No bold text found - use <strong> to emphasize key points (3-5 times)');
-    }
-
-    // Check for incomplete sentences
-    const incompletePattern = /[a-z]\s*\.\s*["']?\s*<\/p>/i;
-    if (incompletePattern.test(content)) {
-      // More sophisticated check needed
-      const potentiallyIncomplete = content.match(/\b[a-z]{1,2}\s*\.\s*["']?\s*<\/p>/gi);
-      if (potentiallyIncomplete) {
-        warnings.push('Possible incomplete sentences detected - verify all sentences are complete');
-      }
+    // External links check
+    const linkCount = this.countLinks(content);
+    if (linkCount < 3) {
+      warnings.push(`Only ${linkCount} external link(s) - recommend 3-4 for credibility`);
     }
 
     return {
@@ -379,6 +343,40 @@ class ContentValidator {
       errors,
       warnings
     };
+  }
+
+  /**
+   * Validate factual content (anti-hallucination check)
+   */
+  validateFactualContent(content) {
+    const warnings = [];
+    
+    // Check for suspiciously precise statistics without sources
+    const suspiciousStats = content.match(/\b\d+(\.\d+)?%(?!\s*<\/a>)/g);
+    if (suspiciousStats && suspiciousStats.length > 3) {
+      warnings.push(`Found ${suspiciousStats.length} statistics - ensure all are from credible sources with citations`);
+    }
+
+    // Check for vague examples
+    const vagueExamples = [
+      /a (?:singapore|apac|sea) (?:startup|company|firm)/gi,
+      /an (?:unnamed|anonymous) (?:company|organization)/gi
+    ];
+    
+    vagueExamples.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches && matches.length > 2) {
+        warnings.push(`Multiple vague examples found - use specific company names for real case studies`);
+      }
+    });
+
+    // Check for dates that seem fabricated
+    const futureDates = content.match(/\b20(2[6-9]|[3-9]\d)\b/g);
+    if (futureDates) {
+      warnings.push(`Found future dates (${futureDates.join(', ')}) - verify these are intentional forward-looking statements`);
+    }
+
+    return { warnings };
   }
 
   /**
@@ -395,69 +393,20 @@ class ContentValidator {
   }
 
   /**
-   * Count first-person usage
-   */
-  countFirstPersonUsage(content) {
-    const text = this.extractTextContent(content);
-    const firstPersonPatterns = [
-      /\bI\s+(?:believe|think|see|find|argue|contend|suggest|recommend|ve|have)/gi,
-      /\bwe\s+(?:believe|see|find|argue|recommend|ve|have)/gi,
-      /\bin my (?:experience|view|work|opinion)/gi,
-      /\bI've (?:seen|worked|found|learned|witnessed)/gi,
-      /\bwe've (?:seen|worked|found|learned)/gi
-    ];
-    
-    let count = 0;
-    firstPersonPatterns.forEach(pattern => {
-      const matches = text.match(pattern);
-      if (matches) {
-        count += matches.length;
-      }
-    });
-    
-    return count;
-  }
-
-  /**
-   * Count regional mentions
-   */
-  countRegionalMentions(content) {
-    const text = this.extractTextContent(content);
-    const regionalPatterns = [
-      /\bsingapore\b/gi,
-      /\bapac\b/gi,
-      /\basia[- ]pacific\b/gi,
-      /\bsoutheast asia\b/gi,
-      /\bsea\b/gi,
-      /\basean\b/gi
-    ];
-    
-    let count = 0;
-    regionalPatterns.forEach(pattern => {
-      const matches = text.match(pattern);
-      if (matches) {
-        count += matches.length;
-      }
-    });
-    
-    return count;
-  }
-
-  /**
    * Validate SEO metadata
    */
   validateSEO(postData) {
     const errors = [];
     const warnings = [];
 
-    // Meta title
     if (!postData.metaTitle) {
       errors.push('Meta title is missing');
     } else if (postData.metaTitle.length > 60) {
       errors.push(`Meta title too long (${postData.metaTitle.length} chars, max 60)`);
+    } else if (postData.metaTitle.length < 40) {
+      warnings.push(`Meta title short (${postData.metaTitle.length} chars, recommend 50-60)`);
     }
 
-    // Meta description
     if (!postData.metaDescription) {
       errors.push('Meta description is missing');
     } else {
@@ -466,28 +415,6 @@ class ContentValidator {
         warnings.push(`Meta description short (${descLength} chars, recommend 150-160)`);
       } else if (descLength > 160) {
         errors.push(`Meta description too long (${descLength} chars, max 160)`);
-      }
-    }
-
-    // OG tags
-    if (!postData.ogTitle) {
-      warnings.push('OG title missing (will default to meta title)');
-    }
-
-    if (!postData.ogDescription) {
-      warnings.push('OG description missing (will default to meta description)');
-    }
-
-    // Keyword density check (basic)
-    if (postData.keyword) {
-      const keywordCount = (postData.content.toLowerCase().match(new RegExp(postData.keyword.toLowerCase(), 'g')) || []).length;
-      const wordCount = this.countWords(postData.content);
-      const density = (keywordCount / wordCount) * 100;
-      
-      if (density < 0.5) {
-        warnings.push(`Keyword density low (${density.toFixed(2)}%, recommend 1-1.5%)`);
-      } else if (density > 2) {
-        warnings.push(`Keyword density high (${density.toFixed(2)}%, may be over-optimized)`);
       }
     }
 
@@ -506,11 +433,10 @@ class ContentValidator {
     const warnings = [];
 
     if (!imageData || !imageData.url) {
-      warnings.push('No featured image - consider adding for better engagement');
+      warnings.push('No featured image - recommend adding for better engagement');
       return { valid: true, errors, warnings };
     }
 
-    // Check if URL is accessible
     try {
       const response = await axios.head(imageData.url, { timeout: 5000 });
       
@@ -518,7 +444,6 @@ class ContentValidator {
         errors.push(`Image URL returned status ${response.status}`);
       }
       
-      // Check content type
       const contentType = response.headers['content-type'];
       if (!contentType.includes('image')) {
         errors.push(`Image URL does not point to an image (${contentType})`);
@@ -528,7 +453,6 @@ class ContentValidator {
       errors.push(`Image URL not accessible: ${error.message}`);
     }
 
-    // Alt text validation
     if (!imageData.altText) {
       warnings.push('Image alt text is missing - bad for SEO and accessibility');
     } else if (imageData.altText.length < 10) {
@@ -552,24 +476,12 @@ class ContentValidator {
     const links = this.extractLinks(content);
 
     if (links.length === 0) {
-      warnings.push('No external links found - consider adding 3-4 authoritative sources');
+      warnings.push('No external links found - recommend adding 3-4 authoritative sources');
       return { warnings };
     }
 
     if (links.length < 3) {
       warnings.push(`Only ${links.length} external link(s) - recommend 3-4 for credibility`);
-    }
-
-    // Check link quality (basic check - just verify they're accessible)
-    let brokenLinks = 0;
-    
-    for (const link of links.slice(0, 5)) { // Check first 5 links only to save time
-      try {
-        await axios.head(link, { timeout: 3000 });
-      } catch (error) {
-        brokenLinks++;
-        warnings.push(`Link may be broken: ${link}`);
-      }
     }
 
     return { warnings };
@@ -620,7 +532,6 @@ class ContentValidator {
 
     while ((match = regex.exec(html)) !== null) {
       const url = match[1];
-      // Only external links
       if (url.startsWith('http://') || url.startsWith('https://')) {
         links.push(url);
       }

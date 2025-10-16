@@ -1,4 +1,4 @@
-// src/services/ghostAPI.js - Enhanced with better HTML parsing
+// src/services/ghostAPI.js - Complete version with HTML cleanup
 const GhostAdminAPI = require('@tryghost/admin-api');
 require('dotenv').config();
 
@@ -10,6 +10,7 @@ class GhostService {
       version: 'v5.0'
     });
   }
+
   /**
    * Find Ghost user by email
    */
@@ -22,13 +23,131 @@ class GhostService {
       return null;
     }
   }
+/**
+ * ENHANCED: Comprehensive HTML cleanup and formatting
+ */
+cleanHTML(html) {
+  console.log('🧹 Cleaning and formatting HTML...');
+  let cleaned = html;
+
+  // ============================================
+  // PHASE 1: REMOVE MARKDOWN ARTIFACTS
+  // ============================================
+  
+  // 1. Remove markdown-style bold (**text**)
+  cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  
+  // 2. Convert markdown lists to HTML lists
+  // Detect unordered lists: lines starting with * or -
+  cleaned = cleaned.replace(/^[\*\-]\s+(.+)$/gm, '<li>$1</li>');
+  
+  // 3. Wrap consecutive <li> items in <ul>
+  cleaned = cleaned.replace(/(<li>.*<\/li>\s*)+/gs, (match) => {
+    if (!match.includes('<ul>')) {
+      return '<ul>' + match + '</ul>';
+    }
+    return match;
+  });
+
+  // ============================================
+  // PHASE 2: FIX SPACING AROUND INLINE ELEMENTS
+  // ============================================
+  
+  // 4. Fix spacing BEFORE <strong> tags
+  // Pattern: word<strong> → word <strong>
+  cleaned = cleaned.replace(/([a-zA-Z0-9\)])(<strong>)/g, '$1 $2');
+  
+  // 5. Fix spacing AFTER </strong> tags
+  // Pattern: </strong>word → </strong> word
+  cleaned = cleaned.replace(/(<\/strong>)([a-zA-Z0-9])/g, '$1 $2');
+  
+  // 6. Fix spacing BEFORE <a> tags
+  // Pattern: word<a → word 
+  cleaned = cleaned.replace(/([a-zA-Z0-9\)])(<a\s)/g, '$1 $2');
+  
+  // 7. Fix spacing AFTER </a> tags
+  // Pattern: </a>word → </a> word
+  cleaned = cleaned.replace(/(<\/a>)([a-zA-Z0-9])/g, '$1 $2');
+  
+  // ============================================
+  // PHASE 3: FIX PUNCTUATION SPACING
+  // ============================================
+  
+  // 8. Fix spacing after </a> before punctuation
+  // Pattern: </a>, → </a>,  then ensure space after comma
+  cleaned = cleaned.replace(/(<\/a>)([,;:.!?])/g, '$1$2');
+  cleaned = cleaned.replace(/(<\/a>)([,;:.!?])([a-zA-Z])/g, '$1$2 $3');
+  
+  // 9. Fix spacing after </strong> before punctuation
+  cleaned = cleaned.replace(/(<\/strong>)([,;:.!?])/g, '$1$2');
+  cleaned = cleaned.replace(/(<\/strong>)([,;:.!?])([a-zA-Z])/g, '$1$2 $3');
+  
+  // 10. Fix missing space after punctuation before tag
+  // Pattern: word,<strong> → word, <strong>
+  cleaned = cleaned.replace(/([,;:.!?])(<(?:strong|a)\s)/g, '$1 $2');
+  
+  // ============================================
+  // PHASE 4: CLEANUP WHITESPACE
+  // ============================================
+  
+  // 11. Remove extra whitespace INSIDE tags
+  cleaned = cleaned.replace(/<strong>\s+/g, '<strong>');
+  cleaned = cleaned.replace(/\s+<\/strong>/g, '</strong>');
+  
+  // 12. Fix double spaces (but preserve single spaces)
+  cleaned = cleaned.replace(/([^.?!])\s{2,}/g, '$1 ');
+  
+  // 13. Ensure space after sentence-ending punctuation
+  cleaned = cleaned.replace(/([.!?])([A-Z])/g, '$1 $2');
+  
+  // ============================================
+  // PHASE 5: FIX COMMON EDGE CASES
+  // ============================================
+  
+  // 14. Fix: "word<strong>" at start of sentence/paragraph
+  cleaned = cleaned.replace(/>([a-zA-Z]+)(<strong>)/g, '>$1 $2');
+  
+  // 15. Fix: "</strong>word" before punctuation
+  cleaned = cleaned.replace(/(<\/strong>)([a-z])/gi, '$1 $2');
+  
+  // 16. Fix: "to<a" (common pattern)
+  cleaned = cleaned.replace(/(\bto)(<a\s)/gi, '$1 $2');
+  
+  // 17. Fix: word</a>word
+  cleaned = cleaned.replace(/([a-z])(<\/a>)([a-z])/gi, '$1$2 $3');
+  
+  // 18. Clean up any double-processed tags
+  cleaned = cleaned.replace(/<strong>\s*<strong>/g, '<strong>');
+  cleaned = cleaned.replace(/<\/strong>\s*<\/strong>/g, '</strong>');
+  
+  // ============================================
+  // PHASE 6: FINAL VALIDATION
+  // ============================================
+  
+  // 19. Remove any remaining markdown artifacts
+  cleaned = cleaned.replace(/\*\*/g, ''); // Remove stray **
+  cleaned = cleaned.replace(/^\*\s/gm, ''); // Remove stray * at line start
+  
+  // 20. Normalize whitespace in text nodes (but preserve in HTML)
+  // This is handled by extractTextContent later
+  
+  console.log('   ✓ HTML cleaned and formatted');
+  console.log('   ✓ Removed markdown artifacts');
+  console.log('   ✓ Fixed spacing around inline elements');
+  
+  return cleaned;
+}
 
   /**
    * Create scheduled post (future publication)
    */
   async createScheduledPost(postData, imageData = null, publishDate) {
     try {
-      const cleanContent = this.cleanContentForGhost(postData.content);
+      // STEP 1: Clean HTML
+      const cleanedHTML = this.cleanHTML(postData.content);
+      const cleanContent = this.cleanContentForGhost(cleanedHTML);
+      
+      // STEP 2: Convert to Lexical
       const lexicalContent = this.htmlToLexical(cleanContent);
       
       const postPayload = {
@@ -88,7 +207,11 @@ class GhostService {
    */
   async createDraft(postData, imageData = null) {
     try {
-      const cleanContent = this.cleanContentForGhost(postData.content);
+      // STEP 1: Clean HTML formatting
+      const cleanedHTML = this.cleanHTML(postData.content);
+      const cleanContent = this.cleanContentForGhost(cleanedHTML);
+      
+      // STEP 2: Convert to Lexical
       const lexicalContent = this.htmlToLexical(cleanContent);
       
       const postPayload = {
@@ -375,108 +498,117 @@ class GhostService {
   }
 
   /**
-   * Parse inline content (bold, italic, links)
-   */
-  parseInlineContent(html) {
-    const nodes = [];
-    
-    // Simple approach: extract text and check for formatting
-    const tempDiv = { innerHTML: html };
-    
-    // Check for links
-    const linkRegex = /<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = linkRegex.exec(html)) !== null) {
-      // Add text before link
-      if (match.index > lastIndex) {
-        const beforeText = html.substring(lastIndex, match.index);
-        const cleanText = this.extractTextContent(beforeText);
-        if (cleanText) {
-          nodes.push(...this.parseFormattedText(beforeText));
-        }
+ * Parse inline content (bold, italic, links) with PRESERVED spacing
+ */
+parseInlineContent(html) {
+  const nodes = [];
+  
+  // Process links first, then bold text
+  let workingHtml = html;
+  let position = 0;
+  
+  // Regex to match: plain text | <strong>text</strong> | <a href="...">text</a>
+  const inlineRegex = /<strong>(.*?)<\/strong>|<a\s+href=["']([^"']+)["'][^>]*>(.*?)<\/a>|([^<]+)/gi;
+  let match;
+  
+  while ((match = inlineRegex.exec(html)) !== null) {
+    if (match[1]) {
+      // <strong> tag - bold text
+      const boldText = this.extractTextContent(match[1]);
+      if (boldText.trim()) {
+        nodes.push({
+          type: 'text',
+          text: boldText,
+          format: 1 // Bold
+        });
       }
-      
-      // Add link
-      const linkText = this.extractTextContent(match[2]);
-      const linkUrl = match[1];
-      
-      if (linkText && linkUrl) {
+    } else if (match[2] && match[3]) {
+      // <a> tag - link
+      const linkUrl = match[2];
+      const linkText = this.extractTextContent(match[3]);
+      if (linkText.trim() && linkUrl) {
         nodes.push({
           type: 'link',
           url: linkUrl,
           children: [{ type: 'text', text: linkText }]
         });
       }
-      
-      lastIndex = match.index + match[0].length;
-    }
-    
-    // Add remaining text
-    if (lastIndex < html.length) {
-      const remainingText = html.substring(lastIndex);
-      nodes.push(...this.parseFormattedText(remainingText));
-    }
-    
-    // If no links found, just parse formatted text
-    if (nodes.length === 0) {
-      nodes.push(...this.parseFormattedText(html));
-    }
-    
-    return nodes.length > 0 ? nodes : [{ type: 'text', text: this.extractTextContent(html) }];
-  }
-
-  /**
-   * Parse formatted text (bold, italic)
-   */
-  parseFormattedText(html) {
-  const nodes = [];
-  const text = this.extractTextContent(html);
-  
-  if (!text || !text.trim()) {
-    return [];
-  }
-  
-  // Check for bold - but only if <strong> tags exist
-  const hasBold = /<strong>/i.test(html);
-  
-  if (hasBold) {
-    // Split by <strong> tags and process
-    const parts = html.split(/<\/?strong>/gi);
-    let isBold = false;
-    
-    for (let i = 0; i < parts.length; i++) {
-      const partText = this.extractTextContent(parts[i]);
-      if (partText && partText.trim()) {
-        if (isBold) {
-          nodes.push({
-            type: 'text',
-            text: partText.trim(),
-            format: 1 // 1 = bold in Lexical
-          });
-        } else {
-          nodes.push({
-            type: 'text',
-            text: partText.trim()
-          });
-        }
+    } else if (match[4]) {
+      // Plain text
+      const plainText = match[4].trim();
+      if (plainText) {
+        nodes.push({
+          type: 'text',
+          text: plainText
+        });
       }
-      isBold = !isBold; // Toggle for next part
     }
-  } else {
-    // No bold formatting, just return plain text
-    nodes.push({
-      type: 'text',
-      text: text.trim()
-    });
   }
   
-  return nodes.length > 0 ? nodes : [{ type: 'text', text: text.trim() }];
+  // Fallback: if no nodes created, just extract text
+  if (nodes.length === 0) {
+    const text = this.extractTextContent(html);
+    if (text.trim()) {
+      nodes.push({
+        type: 'text',
+        text: text
+      });
+    }
+  }
+  
+  return nodes;
 }
 
   /**
-   * Extract plain text from HTML
+   * Parse formatted text (bold, italic) with PRESERVED spacing
+   */
+  parseFormattedText(html) {
+    const nodes = [];
+    const text = this.extractTextContent(html);
+    
+    if (!text || !text.trim()) {
+      return [];
+    }
+    
+    // Check for bold
+    const hasBold = /<strong>/i.test(html);
+    
+    if (hasBold) {
+      // Split by <strong> tags and process
+      const parts = html.split(/(<\/?strong>)/gi);
+      let isBold = false;
+      
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        
+        // Skip the tag itself
+        if (part === '<strong>' || part === '</strong>') {
+          isBold = part === '<strong>';
+          continue;
+        }
+        
+        const partText = this.extractTextContent(part);
+        if (partText) {
+          nodes.push({
+            type: 'text',
+            text: partText,
+            ...(isBold && { format: 1 }) // Add format only if bold
+          });
+        }
+      }
+    } else {
+      // No bold formatting, just return plain text
+      nodes.push({
+        type: 'text',
+        text: text
+      });
+    }
+    
+    return nodes.length > 0 ? nodes : [{ type: 'text', text: text }];
+  }
+
+  /**
+   * Extract plain text from HTML (preserving spaces)
    */
   extractTextContent(html) {
     return html
@@ -510,7 +642,7 @@ class GhostService {
   }
 
   /**
-   * Clean HTML content
+   * Clean HTML content (remove wrappers, code blocks)
    */
   cleanContentForGhost(content) {
     let cleaned = content

@@ -1,8 +1,9 @@
-// src/services/imageGenerator.js - Enhanced with proper image dimensions
+// src/services/imageGenerator.js - AI-driven abstract image generation
 const { GoogleGenAI } = require("@google/genai");
 const fs = require("fs");
 const path = require("path");
 const GhostAdminAPI = require("@tryghost/admin-api");
+const visualStyles = require('../config/visualStyles');
 require("dotenv").config();
 
 class ImageGenerator {
@@ -14,7 +15,7 @@ class ImageGenerator {
     this.maxRetries = 3;
     this.retryDelay = 5000;
     
-    // Ghost CMS optimal dimensions
+    // Ghost CMS featured image dimensions
     this.imageWidth = 1200;
     this.imageHeight = 675;
     this.aspectRatio = "16:9";
@@ -29,65 +30,42 @@ class ImageGenerator {
       key: process.env.GHOST_ADMIN_API_KEY,
       version: "v5.0",
     });
-    
-    // Track used styles for variety
-    this.styleHistoryFile = path.join(process.cwd(), "generated", "image-style-history.json");
-    this.ensureStyleHistory();
-  }
-
-  ensureStyleHistory() {
-    if (!fs.existsSync(this.styleHistoryFile)) {
-      fs.writeFileSync(this.styleHistoryFile, JSON.stringify({ recentStyles: [] }));
-    }
-  }
-
-  loadStyleHistory() {
-    try {
-      const data = fs.readFileSync(this.styleHistoryFile, 'utf8');
-      return JSON.parse(data);
-    } catch (error) {
-      return { recentStyles: [] };
-    }
-  }
-
-  saveStyleHistory(history) {
-    try {
-      fs.writeFileSync(this.styleHistoryFile, JSON.stringify(history, null, 2));
-    } catch (error) {
-      console.error('Failed to save style history:', error.message);
-    }
   }
 
   /**
-   * Generate abstract featured image with retry logic
+   * Generate featured image based on article content
+   * @param {string} keyword - Article topic/keyword
+   * @param {string} templateType - Article template type
+   * @param {string} persona - Author persona name
+   * @param {string} articleContent - Full HTML content of article
    */
-  async generateFeaturedImage(keyword, templateType, persona) {
-    const style = this.selectUnusedStyle();
-    const prompt = this.buildAbstractImagePrompt(keyword, templateType, style);
+  async generateFeaturedImage(keyword, templateType, persona, articleContent = null) {
+    const colorPalette = this.selectColorPalette(keyword);
+    const prompt = this.buildIntelligentImagePrompt(keyword, articleContent, colorPalette);
     const filename = this.generateSEOFilename(keyword, templateType);
 
     let lastError;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        console.log(`🎨 Generating image (attempt ${attempt}/${this.maxRetries})...`);
-        console.log(`   Target size: ${this.imageWidth}x${this.imageHeight}px (${this.aspectRatio} landscape)`);
+        console.log(`🎨 Generating abstract image (attempt ${attempt}/${this.maxRetries})...`);
+        console.log(`   Target: ${this.imageWidth}x${this.imageHeight}px (${this.aspectRatio} landscape)`);
         
         const filePath = await this.generateImageFromPrompt(prompt, filename);
         
         console.log("☁️  Uploading to Ghost...");
         const ghostUrl = await this.uploadToGhostWithRetry(filePath);
 
-        // Record used style
-        this.recordUsedStyle(style.name);
+        // Generate intelligent alt text based on actual image concept
+        const altText = await this.generateIntelligentAltText(keyword, articleContent, colorPalette);
 
         return {
           filename,
           path: filePath,
           url: ghostUrl,
-          altText: this.generateSEOAltText(keyword, templateType),
+          altText: altText,
           provider: "gemini-abstract",
-          style: style.name,
+          colorPalette: colorPalette.mood,
           dimensions: `${this.imageWidth}x${this.imageHeight}`
         };
         
@@ -96,7 +74,7 @@ class ImageGenerator {
         console.error(`⚠️  Attempt ${attempt} failed:`, error.message);
         
         if (attempt < this.maxRetries) {
-          const delay = this.retryDelay * attempt;
+          const delay = this.retryDelay * attempt; // Exponential backoff
           console.log(`⏳ Retrying in ${delay/1000} seconds...`);
           await this.sleep(delay);
         }
@@ -106,248 +84,247 @@ class ImageGenerator {
     console.error(`❌ All ${this.maxRetries} image generation attempts failed`);
     console.error(`Last error: ${lastError.message}`);
     
-    // Return fallback
     return this.getFallback(keyword, templateType);
   }
 
   /**
-   * Select a style that hasn't been used recently
+   * Build intelligent image prompt based on article content
    */
-  selectUnusedStyle() {
-    const visualStyles = this.getAllVisualStyles();
-    const history = this.loadStyleHistory();
-    const recentStyles = history.recentStyles || [];
-
-    // Filter out recently used styles
-    const availableStyles = visualStyles.filter(s => !recentStyles.includes(s.name));
-    
-    if (availableStyles.length > 0) {
-      return availableStyles[Math.floor(Math.random() * availableStyles.length)];
+  buildIntelligentImagePrompt(keyword, articleContent, colorPalette) {
+    // Extract article essence if content provided
+    let articleEssence = '';
+    if (articleContent) {
+      const textContent = articleContent.replace(/<[^>]*>/g, ' ').substring(0, 1500);
+      articleEssence = `\n**Article Context** (use this to inform the visual concept):\n${textContent}\n`;
     }
-    
-    // All styles used, reset and pick random
-    console.log('🔄 All image styles used, resetting history');
-    this.saveStyleHistory({ recentStyles: [] });
-    return visualStyles[Math.floor(Math.random() * visualStyles.length)];
-  }
 
-  recordUsedStyle(styleName) {
-    const history = this.loadStyleHistory();
-    const recentStyles = history.recentStyles || [];
-    
-    // Add to front, remove if already exists
-    const updated = [styleName, ...recentStyles.filter(s => s !== styleName)];
-    
-    // Keep last 5 styles
-    const trimmed = updated.slice(0, 5);
-    
-    this.saveStyleHistory({ recentStyles: trimmed });
-  }
+    return `
+Create a professional abstract business illustration for a B2B article.
 
-  getAllVisualStyles() {
-    return [
-      {
-        name: 'geometric-modern',
-        description: 'Clean 3D geometric shapes (cubes, spheres, cylinders) with modern lighting, professional depth',
-        colors: 'vibrant blue, orange, teal accents on dark navy background',
-        mood: 'professional, modern, technology-forward'
-      },
-      {
-        name: 'data-visualization',
-        description: 'Abstract data streams, flowing information patterns, network nodes, connectivity visualization',
-        colors: 'cyan, electric blue, white on dark background',
-        mood: 'analytical, intelligent, data-driven'
-      },
-      {
-        name: 'gradient-landscape',
-        description: 'Smooth gradient waves forming abstract landscape, rolling color transitions, horizon perspective',
-        colors: 'coral pink, peach, lavender gradient on soft background',
-        mood: 'optimistic, forward-looking, strategic'
-      },
-      {
-        name: 'architectural-wireframe',
-        description: 'Technical blueprint lines, architectural wireframe structures, clean technical diagrams',
-        colors: 'white and cyan lines on dark blue/black background',
-        mood: 'structured, strategic, framework-focused'
-      },
-      {
-        name: 'particle-network',
-        description: 'Glowing particles connected by light trails, constellation-like network patterns',
-        colors: 'purple, magenta, blue on black background',
-        mood: 'connected, innovative, future-forward'
-      },
-      {
-        name: 'fluid-organic',
-        description: 'Liquid paint swirls, organic flowing shapes, smooth color transitions like ink in water',
-        colors: 'emerald green, gold, cream on light grey',
-        mood: 'dynamic, transformative, flowing'
-      },
-      {
-        name: 'crystalline-structure',
-        description: 'Faceted crystal forms, prismatic geometric structures, gem-like reflective surfaces',
-        colors: 'ice blue, silver, white with subtle color reflections',
-        mood: 'premium, refined, high-value'
-      },
-      {
-        name: 'topographic-contour',
-        description: 'Topographical contour lines, elevation maps, layered terrain visualization',
-        colors: 'forest green, brown, tan on cream background',
-        mood: 'strategic, mapping, navigational'
-      },
-      {
-        name: 'light-beam-radial',
-        description: 'Radial light beams, lens flares, luminous rays emanating from center',
-        colors: 'golden yellow, warm orange on dark teal',
-        mood: 'enlightening, clarity, breakthrough'
-      },
-      {
-        name: 'minimalist-bold',
-        description: 'Simple bold geometric shapes with lots of negative space, minimal composition',
-        colors: 'black shapes with one bright accent color on white',
-        mood: 'clean, decisive, impactful'
-      }
-    ];
-  }
+**Article Topic**: ${keyword}
+${articleEssence}
 
-  /**
-   * Build prompt for topic-relevant abstract images with EXACT dimensions
-   */
-  buildAbstractImagePrompt(keyword, templateType, style) {
-    // Extract topic essence for visual connection
-    const topicEssence = this.extractTopicEssence(keyword);
-    const regionalContext = this.getRegionalVisualContext(keyword);
-    
-    const baseRequirements = `
-CRITICAL IMAGE REQUIREMENTS:
+=============================================================================
+CRITICAL IMAGE SPECIFICATIONS
+=============================================================================
 
-**DIMENSIONS (MUST BE EXACT):**
+**Dimensions** (NON-NEGOTIABLE):
 - Width: EXACTLY 1200 pixels
-- Height: EXACTLY 675 pixels
-- Aspect Ratio: 16:9 (landscape/horizontal orientation)
-- This is for Ghost CMS featured images - dimensions MUST be precise
-- NEVER create portrait or square images - ONLY 16:9 landscape
+- Height: EXACTLY 675 pixels  
+- Aspect Ratio: 16:9 landscape (horizontal orientation MANDATORY)
+- The image MUST be wider than it is tall
 
-**CONTENT RESTRICTIONS:**
-- NO people, faces, or human figures
-- NO realistic objects, buildings, or recognizable landmarks  
-- NO text, words, letters, or numbers anywhere in the image
-- Only pure abstract visual representation
-- Professional editorial photography style
-- High quality photorealistic rendering
+**Format Requirements**:
+- High-resolution PNG
+- Professional editorial quality
+- Optimized for web display
+- Sharp, clean rendering
 
-**VISUAL STYLE:** ${style.description}
-**COLOR PALETTE:** ${style.colors}
-**MOOD:** ${style.mood}
+=============================================================================
+VISUAL CONCEPT GUIDELINES
+=============================================================================
 
-**TOPIC CONNECTION (Abstract Representation):**
-Main Topic: ${keyword}
-Visual Essence: ${topicEssence}
-Regional Context: ${regionalContext}
-Template Type: ${this.getTemplateVisualGuidance(templateType)}
+**Style Direction**:
+Create an abstract visual representation that captures the essence of "${keyword}".
 
-**COMPOSITION RULES:**
-- Landscape orientation (wider than tall) - 16:9 ratio MANDATORY
-- Main subject occupies 60-70% of frame
-- Balanced composition with clear focal point
+${this.getVisualConceptGuidance(keyword)}
+
+**Color Palette**:
+- Background: ${colorPalette.background}
+- Primary Elements: ${colorPalette.primary}
+- Accent Details: ${colorPalette.accent}
+- Overall Mood: ${colorPalette.mood}
+
+**Composition**:
+- Landscape orientation (16:9 ratio) - MANDATORY
+- Main visual elements occupy 40-50% of frame
+- Balanced composition with clear visual hierarchy
 - Professional depth and dimension
-- Clean, uncluttered background
-- Modern, contemporary aesthetic
-- Suitable for business/professional context
-- Optimized for web display (1200x675px)
+- Clean background that doesn't compete with content
+- Modern, sophisticated aesthetic
+- Suitable for B2B business context
 
-**TECHNICAL SPECIFICATIONS:**
-- Exact dimensions: 1200px wide × 675px tall
-- Aspect ratio: 16:9 landscape (horizontal)
-- Style: Abstract editorial photography
-- Lighting: Professional, even illumination
-- Quality: High resolution, sharp details
-- Format: PNG, optimized for web
-- File size: Suitable for fast web loading
+**Abstract Elements**:
+Based on the topic "${keyword}", choose appropriate abstract forms:
+- For technology/digital topics: geometric shapes, data visualization, network patterns, flowing lines
+- For growth/performance topics: upward curves, expanding forms, dynamic movement
+- For strategy/planning topics: structured layers, pathways, directional elements
+- For innovation/future topics: emerging patterns, breakthrough compositions, horizon perspectives
+- For partnership/collaboration topics: connecting elements, unified networks, collaborative patterns
 
-CRITICAL: The image MUST be landscape (horizontal) format. A 1200x675px rectangle is WIDER than it is tall.
+Let the AI intelligently select shapes and forms that best represent the conceptual essence.
 
-Create an abstract visual that EMOTIONALLY represents the topic essence while maintaining professional sophistication in a 16:9 landscape format.
-`;
+**Content Restrictions**:
+- NO people, faces, or human figures
+- NO text, letters, words, or numbers
+- NO photographic or realistic elements
+- Pure abstract visual representation
+- Professional business illustration style
 
-    return baseRequirements;
+=============================================================================
+TECHNICAL EXECUTION
+=============================================================================
+
+**Quality Standards**:
+- Professional editorial illustration quality
+- Clean, sharp rendering
+- Even, professional lighting
+- High contrast where appropriate
+- Gradient transitions should be smooth
+- No artifacts or noise
+
+**Mandatory Output**:
+- 1200px × 675px (16:9 landscape)
+- PNG format
+- Abstract business illustration
+- Professional and polished appearance
+
+Generate a visually striking abstract illustration that emotionally and conceptually represents the article topic while maintaining professional sophistication.
+`.trim();
   }
 
   /**
-   * Extract visual essence from topic keyword
+   * Get visual concept guidance based on topic
    */
-  extractTopicEssence(keyword) {
-    const essenceMap = {
-      'transformation': 'evolution, metamorphosis, transition from old to new state',
-      'digital': 'connectivity, data flow, technological integration',
-      'growth': 'upward movement, expansion, ascending momentum',
-      'strategy': 'pathways, direction, calculated movement',
-      'customer': 'journey, experience flow, connection points',
-      'retention': 'bonds, holding together, continuity',
-      'pricing': 'value scales, balance, exchange',
-      'market': 'landscape, terrain, positioning',
-      'innovation': 'breakthrough, emergence, new formations',
-      'leadership': 'guidance, direction, forward momentum',
-      'data': 'information streams, patterns, insights',
-      'performance': 'acceleration, optimization, efficiency',
-      'revenue': 'growth curves, flowing abundance',
-      'competitive': 'differentiation, standing out, elevation',
-      'operational': 'precision, systems, synchronized flow',
-      'partnership': 'connection, collaboration, network',
-      'talent': 'potential, capability, human capital',
-      'sustainability': 'cycles, renewal, continuous flow',
-      'ai': 'intelligence, neural patterns, cognitive networks',
-      'automation': 'efficiency, streamlined processes, smart systems',
-      'singapore': 'modern hub, innovation center, strategic gateway',
-      'apac': 'regional connectivity, diverse markets, growth dynamics',
-      'sea': 'emerging opportunities, dynamic change, regional integration',
-      'smb': 'agility, growth potential, entrepreneurial energy',
-      'fintech': 'financial innovation, digital transformation, future banking',
-      'saas': 'cloud connectivity, scalable platforms, modern software',
-      'retail': 'commerce flow, shopping experience, consumer journey',
-      'omnichannel': 'seamless integration, unified experience, channel harmony'
-    };
-
-    // Find matching keywords
-    for (const [key, essence] of Object.entries(essenceMap)) {
-      if (keyword.toLowerCase().includes(key)) {
-        return essence;
+  getVisualConceptGuidance(keyword) {
+    const lowerKeyword = keyword.toLowerCase();
+    const styles = visualStyles.compositionStyles;
+    
+    // Match composition style to topic keywords
+    for (const [theme, guidance] of Object.entries(styles)) {
+      if (lowerKeyword.includes(theme)) {
+        return `**Suggested Visual Approach**: ${guidance}`;
       }
     }
-
-    return 'strategic business concept, professional insight, forward momentum';
+    
+    // Intelligent fallback based on common B2B themes
+    if (lowerKeyword.match(/digital|technology|tech|ai|automation|software|saas/)) {
+      return `**Suggested Visual Approach**: ${styles.connectivity} or ${styles.innovation}`;
+    }
+    if (lowerKeyword.match(/growth|revenue|performance|sales|market/)) {
+      return `**Suggested Visual Approach**: ${styles.growth} or ${styles.performance}`;
+    }
+    if (lowerKeyword.match(/strategy|framework|planning|operational/)) {
+      return `**Suggested Visual Approach**: ${styles.strategy}`;
+    }
+    if (lowerKeyword.match(/future|vision|outlook|trend|emerging/)) {
+      return `**Suggested Visual Approach**: ${styles.future} or ${styles.innovation}`;
+    }
+    if (lowerKeyword.match(/partner|collaboration|ecosystem|network/)) {
+      return `**Suggested Visual Approach**: ${styles.partnership}`;
+    }
+    
+    // Generic fallback
+    return `**Suggested Visual Approach**: Create abstract forms that conceptually represent the essence of this business topic. Use geometric or organic shapes, flowing lines, or structured patterns as appropriate.`;
   }
 
   /**
-   * Get regional visual context
+   * Select appropriate color palette
    */
-  getRegionalVisualContext(keyword) {
-    if (keyword.toLowerCase().includes('singapore')) {
-      return 'modern, tech-forward, precision-focused, hub mentality';
+  selectColorPalette(keyword) {
+    const lowerKeyword = keyword.toLowerCase();
+    const palettes = visualStyles.colorPalettes;
+    
+    // Match palette to topic theme
+    if (lowerKeyword.match(/digital|technology|tech|software|saas/)) {
+      return palettes.techForward;
     }
-    if (keyword.toLowerCase().includes('apac') || keyword.toLowerCase().includes('asia')) {
-      return 'dynamic, diverse, interconnected, growth-oriented';
+    if (lowerKeyword.match(/data|analytics|intelligence|ai/)) {
+      return palettes.analytical;
     }
-    if (keyword.toLowerCase().includes('sea') || keyword.toLowerCase().includes('southeast')) {
-      return 'emerging, energetic, opportunity-rich, transformative';
+    if (lowerKeyword.match(/growth|future|vision|optimiz/)) {
+      return palettes.optimistic;
     }
-    return 'global yet locally relevant, professional, contemporary';
-  }
-
-  getTemplateVisualGuidance(templateType) {
-    const guidance = {
-      'Strategic Framework': 'structured layers, architectural forms, framework visualization',
-      'Case Study Analysis': 'transformation journey, before-after contrast, process flow',
-      'Vision & Outlook': 'horizon perspective, forward movement, future-oriented composition',
-      'Point of View (POV)': 'bold statement, contrarian angle, distinctive perspective',
-      'How-To / Playbook': 'step progression, methodical flow, clear pathway',
-      'Expert Q&A': 'dialogue visualization, knowledge exchange, insight sharing'
-    };
-
-    return guidance[templateType] || 'professional business visualization';
+    if (lowerKeyword.match(/strategy|framework|planning/)) {
+      return palettes.strategic;
+    }
+    if (lowerKeyword.match(/innovation|emerging|disruption/)) {
+      return palettes.innovative;
+    }
+    if (lowerKeyword.match(/transform|change|evolution/)) {
+      return palettes.dynamic;
+    }
+    if (lowerKeyword.match(/premium|executive|leadership/)) {
+      return palettes.premium;
+    }
+    if (lowerKeyword.match(/insight|clarity|understanding/)) {
+      return palettes.clarity;
+    }
+    if (lowerKeyword.match(/essential|core|fundamental/)) {
+      return palettes.minimalist;
+    }
+    
+    // Random selection from appropriate palettes for variety
+    const generalPalettes = [
+      palettes.techForward,
+      palettes.strategic,
+      palettes.optimistic,
+      palettes.innovative
+    ];
+    
+    return generalPalettes[Math.floor(Math.random() * generalPalettes.length)];
   }
 
   /**
-   * Generate SEO-optimised filename
+   * Generate intelligent alt text based on visual concept and keywords
+   */
+  async generateIntelligentAltText(keyword, articleContent, colorPalette) {
+    // Extract key concepts from article if available
+    let contextHint = '';
+    if (articleContent) {
+      const text = articleContent.replace(/<[^>]*>/g, ' ').substring(0, 500);
+      contextHint = `\nArticle context: ${text}`;
+    }
+
+    const altPrompt = `
+Create a concise alt text (under 125 characters) for an abstract business illustration.
+
+Topic: ${keyword}
+Visual Style: Abstract ${colorPalette.mood} composition
+${contextHint}
+
+The alt text should:
+- Describe the visual elements abstractly (e.g., "geometric network pattern", "flowing gradient curves")
+- Include the topic keyword naturally
+- Be under 125 characters
+- Be accessible and descriptive
+
+Examples:
+- "Abstract data visualization with flowing blue network patterns representing digital transformation"
+- "Geometric shapes in vibrant gradients illustrating B2B growth strategies"  
+- "Minimalist illustration with radiating lines symbolizing innovation and breakthrough"
+
+Return ONLY the alt text, no quotes or explanations.
+`.trim();
+
+    try {
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [{ role: "user", parts: [{ text: altPrompt }] }],
+      });
+
+      let altText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      altText = altText.replace(/^["']|["']$/g, '');
+      
+      // Ensure length
+      if (altText.length > 125) {
+        altText = altText.substring(0, 122) + '...';
+      }
+      
+      // Fallback if generation failed
+      if (altText.length < 10) {
+        altText = `Abstract ${colorPalette.mood} illustration representing ${keyword}`;
+      }
+      
+      return altText.substring(0, 125);
+    } catch (error) {
+      console.error('Alt text generation failed:', error.message);
+      return `Abstract business illustration representing ${keyword}`.substring(0, 125);
+    }
+  }
+
+  /**
+   * Generate SEO-friendly filename
    */
   generateSEOFilename(keyword, templateType) {
     const slug = keyword
@@ -356,30 +333,7 @@ Create an abstract visual that EMOTIONALLY represents the topic essence while ma
       .replace(/[^a-z0-9-]/g, "")
       .substring(0, 50);
 
-    const templateSlug = templateType
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .substring(0, 20);
-
-    return `${slug}-${templateSlug}-${Date.now()}.png`;
-  }
-
-  /**
-   * Generate keyword-rich alt text (SEO optimised, under 125 chars)
-   */
-  generateSEOAltText(keyword, templateType) {
-    // Keep under 125 characters for SEO best practices
-    const baseAlt = `${keyword} - ${templateType} insights`;
-    
-    if (baseAlt.length > 120) {
-      // Truncate keyword if too long
-      const maxKeywordLength = 100 - templateType.length;
-      const truncatedKeyword = keyword.substring(0, maxKeywordLength);
-      return `${truncatedKeyword} - ${templateType}`;
-    }
-    
-    return baseAlt;
+    return `${slug}-featured-${Date.now()}.png`;
   }
 
   /**
@@ -393,7 +347,7 @@ Create an abstract visual that EMOTIONALLY represents the topic essence while ma
 
     const candidate = response.candidates?.[0];
     if (!candidate) {
-      throw new Error("No candidates returned by Gemini");
+      throw new Error("No image generated by Gemini AI");
     }
 
     for (const part of candidate.content.parts) {
@@ -402,9 +356,8 @@ Create an abstract visual that EMOTIONALLY represents the topic essence while ma
         const outPath = path.join(this.imageDir, filename);
         fs.writeFileSync(outPath, buffer);
         
-        // Log image details
-        console.log("✅ Abstract image saved:", filename);
-        console.log(`   Expected dimensions: ${this.imageWidth}x${this.imageHeight}px`);
+        console.log("✅ Abstract image generated:", filename);
+        console.log(`   Dimensions: ${this.imageWidth}x${this.imageHeight}px`);
         
         return outPath;
       }
@@ -449,14 +402,14 @@ Create an abstract visual that EMOTIONALLY represents the topic essence while ma
       filename: null,
       path: null,
       url: null,
-      altText: this.generateSEOAltText(keyword, templateType),
+      altText: `Abstract illustration representing ${keyword}`.substring(0, 125),
       provider: "fallback",
-      note: "Image generation failed after all retries - post will be created without featured image",
+      note: "Image generation failed after all retries",
     };
   }
 
   /**
-   * Cleanup old/failed images
+   * Cleanup old images
    */
   cleanupOldImages(daysOld = 7) {
     try {
@@ -499,9 +452,10 @@ Create an abstract visual that EMOTIONALLY represents the topic essence while ma
       console.log(`   Target: ${this.imageWidth}x${this.imageHeight}px (${this.aspectRatio} landscape)`);
       
       const result = await this.generateFeaturedImage(
-        "Singapore SMB Digital Transformation Strategies",
+        "Digital Transformation in B2B Marketing",
         "Strategic Framework",
-        "Dr. Anya Sharma"
+        "Dr. Anya Sharma",
+        "<p>Digital transformation is reshaping how B2B companies approach marketing in APAC markets...</p>"
       );
       
       if (result.url) {

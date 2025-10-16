@@ -1,0 +1,104 @@
+{
+  "timestamp": "2025-10-16T19:43:53.699Z",
+  "post": {
+    "title": "Singapore Digital Transformation: SMB Success Secrets",
+    "keyword": "Why 73% of Singapore SMBs Fail Digital Transformation (And How 3 Got It Right)",
+    "template": "Expert Q&A",
+    "author": "Linh Nguyen"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Singapore Digital Transformation: SMB Success Secrets",
+      "length": 53,
+      "optimal": true,
+      "score": 95
+    },
+    "metaDescription": {
+      "value": "73% of Singapore SMBs fail at digital transformation. Learn why, and how 3 companies succeeded. Actionable insights for strategy, people & processes.",
+      "length": 149,
+      "optimal": false,
+      "score": 70
+    },
+    "keyword": {
+      "target": "Why 73% of Singapore SMBs Fail Digital Transformation (And How 3 Got It Right)",
+      "inTitle": false,
+      "inMetaDescription": false,
+      "density": "0.00",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 5,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 846,
+      "paragraphCount": 14,
+      "avgWordsPerParagraph": 60,
+      "score": 75
+    },
+    "links": {
+      "total": 3,
+      "internalEstimate": 0,
+      "externalEstimate": 3,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 84,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "Meta description short (149 chars, recommend 150-160)",
+      "Found 5 statistics - ensure all are from credible sources with citations"
+    ]
+  },
+  "overall": {
+    "score": 79,
+    "grade": "C",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Meta Description",
+        "priority": "High",
+        "issue": "Description length is 149 characters",
+        "fix": "Optimize description to 150-160 characters"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      },
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (846 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      },
+      {
+        "category": "Meta Description",
+        "priority": "Medium",
+        "issue": "Target keyword not in meta description",
+        "fix": "Include target keyword naturally in description"
+      }
+    ]
+  }
+}

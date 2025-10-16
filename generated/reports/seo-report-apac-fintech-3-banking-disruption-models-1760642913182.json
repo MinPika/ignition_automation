@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-10-16T19:28:33.174Z",
+  "post": {
+    "title": "APAC Fintech: 3 Banking Disruption Models",
+    "keyword": "APAC Fintech Innovation: 3 Models Disrupting Traditional Banking",
+    "template": "Case Study Analysis",
+    "author": "Linh Nguyen"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "APAC Fintech: 3 Banking Disruption Models",
+      "length": 41,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Discover APAC's fintech innovation disrupting traditional banking. Explore 3 key models reshaping finance across diverse markets and empowering new customers.",
+      "length": 158,
+      "optimal": true,
+      "score": 80
+    },
+    "keyword": {
+      "target": "APAC Fintech Innovation: 3 Models Disrupting Traditional Banking",
+      "inTitle": false,
+      "inMetaDescription": false,
+      "density": "0.12",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 5,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 810,
+      "paragraphCount": 15,
+      "avgWordsPerParagraph": 54,
+      "score": 75
+    },
+    "links": {
+      "total": 4,
+      "internalEstimate": 0,
+      "externalEstimate": 4,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 83,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "8 sentences exceed 25 words - aim for 15-20 words per sentence"
+    ]
+  },
+  "overall": {
+    "score": 79,
+    "grade": "C",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0.12%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      },
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (810 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      }
+    ]
+  }
+}

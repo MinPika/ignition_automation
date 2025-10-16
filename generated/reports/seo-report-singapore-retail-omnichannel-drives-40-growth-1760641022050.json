@@ -1,0 +1,92 @@
+{
+  "timestamp": "2025-10-16T18:57:02.038Z",
+  "post": {
+    "title": "Singapore Retail: Omnichannel Drives 40% Growth",
+    "keyword": "How Singapore Retailers Achieved 40% Revenue Growth Through Omnichannel",
+    "template": "Vision & Outlook",
+    "author": "Dr. Anya Sharma"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Singapore Retail: Omnichannel Drives 40% Growth",
+      "length": 47,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Discover how Singapore retailers achieved 40% revenue growth with omnichannel strategies. Learn key differentiators & emerging trends driving success in Sing...",
+      "length": 160,
+      "optimal": true,
+      "score": 80
+    },
+    "keyword": {
+      "target": "How Singapore Retailers Achieved 40% Revenue Growth Through Omnichannel",
+      "inTitle": false,
+      "inMetaDescription": false,
+      "density": "0.10",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 5,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 949,
+      "paragraphCount": 14,
+      "avgWordsPerParagraph": 68,
+      "score": 75
+    },
+    "links": {
+      "total": 3,
+      "internalEstimate": 0,
+      "externalEstimate": 3,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 97,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "10 sentences exceed 25 words - aim for 15-20 words per sentence",
+      "Found 10 statistics - ensure all are from credible sources with citations"
+    ]
+  },
+  "overall": {
+    "score": 79,
+    "grade": "C",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0.1%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      },
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (949 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      }
+    ]
+  }
+}

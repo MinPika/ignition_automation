@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-10-16T19:37:18.907Z",
+  "post": {
+    "title": "Singapore Logistics: 3X Growth with Automation?",
+    "keyword": "Singapore Logistics Startups: Automating Their Way to 300% Growth",
+    "template": "Expert Q&A",
+    "author": "Linh Nguyen"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "Singapore Logistics: 3X Growth with Automation?",
+      "length": 47,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Discover how Singapore logistics startups are leveraging strategic automation for 300% growth. Learn valuable B2B lessons & insights into their success.",
+      "length": 152,
+      "optimal": true,
+      "score": 80
+    },
+    "keyword": {
+      "target": "Singapore Logistics Startups: Automating Their Way to 300% Growth",
+      "inTitle": false,
+      "inMetaDescription": false,
+      "density": "0.09",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 5,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 100
+    },
+    "readability": {
+      "wordCount": 1058,
+      "paragraphCount": 14,
+      "avgWordsPerParagraph": 76,
+      "score": 65
+    },
+    "links": {
+      "total": 4,
+      "internalEstimate": 0,
+      "externalEstimate": 4,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 86,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "8 sentences exceed 25 words - aim for 15-20 words per sentence",
+      "Found 7 statistics - ensure all are from credible sources with citations"
+    ]
+  },
+  "overall": {
+    "score": 78,
+    "grade": "C",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0.09%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      },
+      {
+        "category": "Readability",
+        "priority": "High",
+        "issue": "Content is short (1058 words)",
+        "fix": "Expand content to 1,400-1,600 words for better depth"
+      },
+      {
+        "category": "Readability",
+        "priority": "Medium",
+        "issue": "Paragraphs are too long",
+        "fix": "Break paragraphs into 2-3 sentences each"
+      }
+    ]
+  }
+}

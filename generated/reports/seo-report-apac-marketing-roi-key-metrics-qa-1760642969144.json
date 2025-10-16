@@ -1,0 +1,88 @@
+{
+  "timestamp": "2025-10-16T19:29:29.136Z",
+  "post": {
+    "title": "APAC Marketing ROI: Key Metrics Q&A",
+    "keyword": "Measuring Marketing ROI in APAC: Metrics That Actually Matter",
+    "template": "Expert Q&A",
+    "author": "Dr. Anya Sharma"
+  },
+  "seo": {
+    "metaTitle": {
+      "value": "APAC Marketing ROI: Key Metrics Q&A",
+      "length": 35,
+      "optimal": false,
+      "score": 85
+    },
+    "metaDescription": {
+      "value": "Unlock marketing ROI in APAC! Discover key metrics that drive growth in diverse Asian markets. Data-driven strategies for B2B success & proving marketing value.",
+      "length": 160,
+      "optimal": true,
+      "score": 80
+    },
+    "keyword": {
+      "target": "Measuring Marketing ROI in APAC: Metrics That Actually Matter",
+      "inTitle": false,
+      "inMetaDescription": false,
+      "density": "0.08",
+      "score": 40
+    },
+    "headings": {
+      "structure": {
+        "h1": 1,
+        "h2": 6,
+        "h3": 0,
+        "h4": 0,
+        "h5": 0,
+        "h6": 0
+      },
+      "score": 90
+    },
+    "readability": {
+      "wordCount": 1212,
+      "paragraphCount": 16,
+      "avgWordsPerParagraph": 76,
+      "score": 90
+    },
+    "links": {
+      "total": 3,
+      "internalEstimate": 0,
+      "externalEstimate": 3,
+      "score": 100
+    },
+    "image": {
+      "present": true,
+      "hasAltText": true,
+      "altTextLength": 79,
+      "altTextOptimal": true,
+      "score": 100
+    }
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "Title quite short (35 chars, recommend 40-60)",
+      "14 sentences exceed 25 words - aim for 15-20 words per sentence",
+      "Meta title short (35 chars, recommend 50-60)",
+      "Found 9 statistics - ensure all are from credible sources with citations"
+    ]
+  },
+  "overall": {
+    "score": 80,
+    "grade": "B",
+    "recommendations": [
+      {
+        "category": "Keyword",
+        "priority": "Critical",
+        "issue": "Target keyword not in title",
+        "fix": "Include keyword in title for better SEO"
+      },
+      {
+        "category": "Keyword",
+        "priority": "High",
+        "issue": "Low keyword density (0.08%)",
+        "fix": "Increase keyword usage to 1-2% of content"
+      }
+    ]
+  }
+}
